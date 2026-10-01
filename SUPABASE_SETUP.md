@@ -12,7 +12,7 @@ The existing public library remains available from its bundled files until the S
    values ('PASTE_THE_AUTH_USER_UUID_HERE');
    ```
 
-5. Copy the project's Project URL and anon/public key into `config.js`. The anon key is intended for browser use; never use or publish the `service_role` key.
+5. Copy the project's Project URL and publishable (or legacy anon/public) key into `config.js`. These are intended for browser use with the provided RLS policies; never use or publish a secret or `service_role` key.
 6. Publish the project files to the GitHub Pages site using HTTPS, keeping the folder structure intact. Open `https://adelna7603-ux.github.io/-/admin/login.html` and sign in. The dashboard checks the administrator allowlist and database policies protect every write operation.
 7. On the dashboard, select the existing `legacy-pdfs` folder and click **رفع الملفات الحالية** to copy all 14 existing PDFs into persistent storage and add their current categories and metadata to the database.
 
