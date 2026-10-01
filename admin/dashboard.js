@@ -369,7 +369,7 @@ migrationButton.addEventListener("click", async () => {
     const categoryIds = new Map(categories.map((category) => [category.name_ar, category.id]));
     for (const [index, legacy] of legacyFiles.entries()) {
       const file = selected.get(legacy.name);
-      const existing = files.find((row) => row.name === legacy.name);
+      const existing = files.find((row) => row.name === legacy.name.replace(/\.pdf$/i, ""));
       let path = existing?.object_path;
       if (!path) path = await uploadAsset(file, "documents");
       if (existing) {
