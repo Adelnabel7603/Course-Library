@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>لوحة الإدارة · مكتبة المقررات</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./admin.css" />
+    <script type="module" src="./dashboard.js"></script>
+  </head>
+  <body>
+    <header class="dashboard-header">
+      <a class="admin-brand" href="https://adelna7603-ux.github.io/-/"><span class="brand-mark">م</span> مكتبة المقررات</a>
+      <div class="header-actions">
+        <a class="back-link" href="https://adelna7603-ux.github.io/-/">عرض المكتبة</a>
+        <button class="secondary-button" id="logout-button" type="button">تسجيل الخروج</button>
+      </div>
+    </header>
+    <main class="dashboard">
+      <div class="page-title">
+        <div><p class="eyebrow">إدارة المحتوى</p><h1>لوحة التحكم</h1></div>
+        <span id="admin-email" class="muted"></span>
+      </div>
+      <p id="dashboard-message" class="notice" role="status" hidden></p>
+
+      <section class="panel">
+        <div class="panel-heading"><div><h2>ترحيل الملفات الحالية</h2><p class="muted">يحافظ على ملفات المشروع وبياناتها، ويرفعها إلى التخزين السحابي.</p></div></div>
+        <ol class="setup-steps">
+          <li>اختر مجلد <code>legacy-pdfs</code> من جهازك.</li>
+          <li>سيتم رفع الملفات الأربعة عشر وربط كل ملف بتصنيفه الحالي، مع تجاوز الملفات المرحّلة سابقًا.</li>
+        </ol>
+        <div class="inline-form">
+          <input id="legacy-files" type="file" webkitdirectory directory multiple accept="application/pdf,.pdf" />
+          <button class="primary-button" id="migration-button" type="button">رفع الملفات الحالية</button>
+        </div>
+        <progress id="migration-progress" max="14" value="0" hidden></progress>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><h2>التصنيفات</h2><p class="muted">أنشئ تصنيفًا أو عدّله، أو أظهره كقريبًا.</p></div></div>
+        <form id="category-form" class="inline-form">
+          <input name="name_ar" placeholder="اسم التصنيف بالعربية" required />
+          <input name="name_en" placeholder="الاسم بالإنجليزية (اختياري)" />
+          <label class="check-label"><input name="is_coming_soon" type="checkbox" /> قريبًا</label>
+          <button class="primary-button" type="submit">إضافة تصنيف</button>
+        </form>
+        <div id="category-list" class="category-admin-list"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><h2 id="file-form-heading">إضافة ملف</h2><p class="muted">ارفع ملفًا، أدخل تفاصيله، ثم انشره مباشرة في المكتبة.</p></div></div>
+        <form id="file-form" class="file-form">
+          <input name="id" type="hidden" />
+          <label>اسم الملف<input name="name" required maxlength="180" /></label>
+          <label>التصنيف<select name="category_id" required></select></label>
+          <label class="wide">وصف الملف<textarea name="description" rows="3"></textarea></label>
+          <label>الملف<input name="file" type="file" /></label>
+          <label>صورة الغلاف<input name="cover" type="file" accept="image/png,image/jpeg,image/webp,image/gif" /></label>
+          <label>الترتيب<input name="position" type="number" value="0" /></label>
+          <label class="check-label"><input name="is_published" type="checkbox" checked /> ظاهر للزوار</label>
+          <div class="form-actions wide">
+            <button class="primary-button" type="submit">حفظ الملف</button>
+            <button class="secondary-button" id="cancel-edit" type="button" hidden>إلغاء التعديل</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading file-list-heading">
+          <div><h2>الملفات</h2><p id="file-count" class="muted"></p></div>
+          <input id="file-search" type="search" placeholder="ابحث عن ملف..." aria-label="ابحث عن ملف" />
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>الملف</th><th>التصنيف</th><th>تاريخ الإضافة</th><th>التنزيلات</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+            <tbody id="file-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <div id="admin-toast" class="admin-toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

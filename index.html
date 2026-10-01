@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#153f38" />
+    <meta
+      name="description"
+      content="مكتبة المقررات — ملفات المحاضرات والمراجعة في مكان واحد."
+    />
+    <title>مكتبة المقررات</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="script.js"></script>
+  </head>
+  <body>
+    <header class="hero">
+      <nav class="topbar page-width" aria-label="التنقل">
+        <a class="brand" href="./" aria-label="مكتبة المقررات، الصفحة الرئيسية">
+          <span class="brand-mark" aria-hidden="true">م</span>
+          <span data-text="brand">مكتبة المقررات</span>
+        </a>
+
+        <div class="toolbar">
+          <a class="outline-button admin-link" href="./admin/login.html">
+            <span aria-hidden="true">✎</span>
+            <span data-text="admin">الإدارة</span>
+          </a>
+          <button class="outline-button" id="share-button" type="button">
+            <span aria-hidden="true">↗</span>
+            <span data-text="share">مشاركة</span>
+          </button>
+          <button class="outline-button" id="theme-button" type="button">
+            <span aria-hidden="true" id="theme-icon">☾</span>
+            <span data-text="darkMode">الوضع الليلي</span>
+          </button>
+          <button class="outline-button language-button" id="language-button" type="button">
+            <span aria-hidden="true">文</span>
+            <span data-text="language">English</span>
+          </button>
+        </div>
+      </nav>
+
+      <div class="hero-content page-width">
+        <div class="hero-copy">
+          <p class="eyebrow" data-text="eyebrow">ملفات المحاضرات والمراجعة</p>
+          <h1 data-text="headline">كل مادتك، في مكان واحد.</h1>
+          <p class="hero-description" data-text="description">
+            تصفّح الملفات وافتحها أو نزّلها بسهولة.
+          </p>
+        </div>
+        <div class="total-card" aria-label="عدد الملفات">
+          <strong id="total-count">0</strong>
+          <span data-text="pdfFiles">ملف PDF</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-width main-content">
+      <section class="controls" aria-label="البحث والتصنيف">
+        <div class="category-list" id="category-list" aria-label="تصفية حسب المادة"></div>
+        <label class="search-box">
+          <span aria-hidden="true">⌕</span>
+          <input
+            id="search-input"
+            type="search"
+            autocomplete="off"
+            data-placeholder="searchPlaceholder"
+            placeholder="ابحث باسم الملف..."
+          />
+        </label>
+      </section>
+
+      <section class="library" aria-labelledby="library-heading">
+        <div class="section-heading">
+          <h2 id="library-heading" data-text="filesHeading">الملفات</h2>
+          <span id="result-count" aria-live="polite"></span>
+        </div>
+        <div class="file-grid" id="file-grid" aria-live="polite"></div>
+        <p class="empty-state" id="empty-state" hidden></p>
+      </section>
+    </main>
+
+    <footer class="page-width footer">
+      <span data-text="brand">مكتبة المقررات</span>
+      <span id="footer-count"></span>
+    </footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
