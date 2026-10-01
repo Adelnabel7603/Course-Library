@@ -83,7 +83,7 @@ const themeIcon = document.querySelector("#theme-icon");
 const languageButton = document.querySelector("#language-button");
 const shareButton = document.querySelector("#share-button");
 const toast = document.querySelector("#toast");
-const siteUrl = "https://adelna7603-ux.github.io/-/";
+const siteUrl = new URL("./", window.location.href).href;
 
 let activeCategory = "all";
 let language = "ar";
