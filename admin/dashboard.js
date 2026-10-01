@@ -194,7 +194,7 @@ async function moveFile(file, direction) {
 }
 
 async function uploadAsset(file, prefix) {
-  const path = `${prefix}/${crypto.randomUUID()}-${file.name.replace(/[^\p{L}\p{N}._-]+/gu, "_")}`;
+  const path = `${prefix}/${crypto.randomUUID()}${file.name.match(/\.[A-Za-z0-9]{1,10}$/)?.[0].toLowerCase() || ""}`;
   assertSuccess(await client.storage.from("library-files").upload(path, file, {
     contentType: file.type || "application/octet-stream",
     upsert: false,
