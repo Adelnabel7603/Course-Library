@@ -113,6 +113,42 @@ button {
   background: rgb(255 255 255 / 8%);
 }
 
+.install-button {
+  position: relative;
+}
+
+.install-button:disabled {
+  cursor: progress;
+}
+
+.install-progress {
+  position: absolute;
+  inset-inline: 5px;
+  bottom: 2px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 24%);
+}
+
+.install-progress > span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: #d5b967;
+  animation: install-progress-slide 1s ease-in-out infinite alternate;
+}
+
+@keyframes install-progress-slide {
+  from {
+    transform: translateX(-160%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+
 [hidden] {
   display: none !important;
 }
@@ -769,6 +805,12 @@ body.dark .category-scroll-button:not(:disabled):hover {
     height: 19px;
   }
 
+  .install-progress {
+    inset-inline: 4px;
+    bottom: 1px;
+    height: 2px;
+  }
+
   .hero-content {
     min-height: 145px;
     padding-block: 8px 25px;
@@ -1078,5 +1120,11 @@ body.dark .category-scroll-button:not(:disabled):hover {
   .toolbar-icon {
     width: 17px;
     height: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .install-progress > span {
+    animation-duration: 2.5s;
   }
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = "course-library-v4";
+const CACHE_NAME = "course-library-v5";
 const APP_SHELL = [
   "./",
   "./index.html",

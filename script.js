@@ -13,6 +13,9 @@ const translations = {
     brand: "مكتبة المقررات",
     admin: "الإدارة",
     install: "تثبيت التطبيق",
+    installing: "جارٍ التثبيت...",
+    installAccepted: "وافق المتصفح على التثبيت، جارٍ إكماله...",
+    installCancelled: "تم إلغاء التثبيت.",
     installSuccess: "تم تثبيت التطبيق.",
     installUnavailable: "افتح قائمة المتصفح واختر «إضافة إلى الشاشة الرئيسية» لتثبيت التطبيق.",
     installIOS: "اضغط «مشاركة» في Safari، ثم اختر «إضافة إلى الشاشة الرئيسية».",
@@ -62,6 +65,9 @@ const translations = {
     brand: "Course Library",
     admin: "Admin",
     install: "Install app",
+    installing: "Installing...",
+    installAccepted: "Installation accepted. Finishing up...",
+    installCancelled: "Installation cancelled.",
     installSuccess: "The app has been installed.",
     installUnavailable: "Open your browser menu and choose “Install app” or “Add to Home Screen”.",
     installIOS: "In Safari, tap Share, then choose “Add to Home Screen”.",
@@ -123,6 +129,7 @@ const themeIcon = document.querySelector("#theme-icon");
 const languageButton = document.querySelector("#language-button");
 const shareButton = document.querySelector("#share-button");
 const installButton = document.querySelector("#install-button");
+const installProgress = document.querySelector("#install-progress");
 const toast = document.querySelector("#toast");
 const downloadProgress = document.querySelector("#download-progress");
 const downloadProgressTitle = document.querySelector("#download-progress-title");
@@ -136,6 +143,7 @@ let activeCategory = "all";
 let language = "ar";
 let toastTimeout;
 let installPrompt;
+let installCompletionTimeout;
 let activeDownload;
 
 let categories = legacyCategories.map((category) => ({
@@ -169,6 +177,10 @@ function setLanguage(nextLanguage) {
   document.querySelectorAll("[data-aria-label]").forEach((element) => {
     element.setAttribute("aria-label", currentText()[element.dataset.ariaLabel]);
   });
+  installButton.setAttribute(
+    "aria-label",
+    installButton.disabled ? currentText().installing : currentText().install,
+  );
 
   searchInput.placeholder = currentText().searchPlaceholder;
   searchInput.setAttribute(
@@ -593,6 +605,28 @@ function isStandaloneApp() {
 
 installButton.hidden = isStandaloneApp();
 
+function setInstallLoading(isLoading) {
+  installButton.classList.toggle("is-installing", isLoading);
+  installButton.disabled = isLoading;
+  installButton.setAttribute("aria-busy", String(isLoading));
+  installButton.setAttribute(
+    "aria-label",
+    isLoading ? currentText().installing : currentText().install,
+  );
+  installProgress.hidden = !isLoading;
+}
+
+function clearInstallCompletionTimeout() {
+  window.clearTimeout(installCompletionTimeout);
+  installCompletionTimeout = undefined;
+}
+
+function installInstructions() {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return isIOS ? currentText().installIOS : currentText().installUnavailable;
+}
+
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   installPrompt = event;
@@ -601,29 +635,53 @@ window.addEventListener("beforeinstallprompt", (event) => {
 
 installButton.addEventListener("click", async () => {
   if (!installPrompt) {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    showToast(isIOS ? currentText().installIOS : currentText().installUnavailable);
+    showToast(installInstructions());
     return;
   }
+
+  const promptEvent = installPrompt;
+  installPrompt = null;
+  setInstallLoading(true);
+
   try {
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === "accepted") showToast(currentText().installSuccess);
-    installPrompt = null;
-    installButton.hidden = true;
+    await promptEvent.prompt();
+    const { outcome } = await promptEvent.userChoice;
+    if (outcome === "accepted") {
+      showToast(currentText().installAccepted);
+      installCompletionTimeout = window.setTimeout(() => {
+        setInstallLoading(false);
+        if (isStandaloneApp()) {
+          installButton.hidden = true;
+          showToast(currentText().installSuccess);
+          return;
+        }
+        showToast(installInstructions());
+      }, 10000);
+      return;
+    }
+
+    setInstallLoading(false);
+    showToast(currentText().installCancelled);
   } catch (error) {
+    setInstallLoading(false);
     showToast(error.message || currentText().installUnavailable);
   }
 });
 
 window.addEventListener("appinstalled", () => {
+  clearInstallCompletionTimeout();
   installPrompt = null;
+  setInstallLoading(false);
   installButton.hidden = true;
+  showToast(currentText().installSuccess);
 });
 
 window.matchMedia("(display-mode: standalone)").addEventListener("change", (event) => {
   installButton.hidden = event.matches;
+  if (event.matches) {
+    clearInstallCompletionTimeout();
+    setInstallLoading(false);
+  }
 });
 
 downloadCancelButton.addEventListener("click", () => {
