@@ -17,7 +17,7 @@
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   margin: 0;
   color: var(--ink);
@@ -113,6 +113,30 @@ button {
   background: rgb(255 255 255 / 8%);
 }
 
+[hidden] {
+  display: none !important;
+}
+
+.toolbar-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.language-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.mobile-toolbar {
+  display: none;
+}
+
 .hero-content {
   display: flex;
   min-height: 156px;
@@ -180,6 +204,10 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.category-filter-rail {
+  min-width: 0;
 }
 
 .category-button {
@@ -336,6 +364,26 @@ h1 {
   background: #f9ece9;
   font-size: 0.7rem;
   font-weight: 800;
+}
+
+.pdf-icon.video-icon {
+  color: #3e5e91;
+  background: #eaf0fb;
+  font-size: 0.56rem;
+}
+
+.file-preview {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  margin-top: 14px;
+  border-radius: 10px;
+  background: var(--green-soft);
+  object-fit: cover;
+}
+
+.video-preview {
+  background: #101815;
 }
 
 .file-card h3 {
@@ -624,28 +672,101 @@ body.dark .pdf-icon {
   background: #452f2d;
 }
 
+body.dark .pdf-icon.video-icon {
+  color: #b7cbf4;
+  background: #29374e;
+}
+
+body.dark .mobile-toolbar {
+  border-color: rgb(255 255 255 / 10%);
+  background: rgb(30 41 37 / 96%);
+}
+
+body.dark .mobile-toolbar button,
+body.dark .mobile-toolbar a {
+  color: #bdcbc3;
+}
+
+body.dark .mobile-toolbar .mobile-toolbar-main {
+  border-color: var(--paper);
+  color: #fff;
+  background: #28594d;
+}
+
+body.dark .category-scroll-button {
+  color: #c5d8cd;
+  background: var(--surface);
+}
+
+body.dark .category-scroll-button:disabled {
+  color: var(--muted);
+  background: var(--paper);
+}
+
+body.dark .category-scroll-button:not(:disabled):hover {
+  color: #fff;
+  background: var(--green-strong);
+}
+
 @media (max-width: 760px) {
   .page-width {
     width: min(100% - 32px, 600px);
   }
 
   .topbar {
-    min-height: 76px;
-    align-items: flex-start;
-    flex-direction: column;
-    justify-content: center;
-    gap: 12px;
-    padding-block: 16px;
+    min-height: 72px;
+    align-items: center;
+    gap: 8px;
+    padding-block: 12px;
+  }
+
+  .brand {
+    min-width: 0;
+    flex: 1 1 0;
+    gap: 7px;
+    font-size: .88rem;
+  }
+
+  .brand > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
   }
 
   .toolbar {
-    width: 100%;
+    width: auto;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .toolbar .admin-link {
+    display: none;
   }
 
   .outline-button {
-    min-height: 36px;
-    padding-inline: 10px;
-    font-size: 0.85rem;
+    width: 36px;
+    min-width: 36px;
+    min-height: 38px;
+    padding: 5px;
+    border: 1px solid rgb(255 255 255 / 20%);
+    border-radius: 12px;
+    background: rgb(255 255 255 / 7%);
+  }
+
+  .outline-button > span[data-text] {
+    display: none;
+  }
+
+  .toolbar-icon {
+    width: 19px;
+    height: 19px;
   }
 
   .hero-content {
@@ -663,15 +784,204 @@ body.dark .pdf-icon {
 
   .controls {
     grid-template-columns: 1fr;
-    gap: 13px;
+    gap: 12px;
+    padding-block: 20px 17px;
   }
 
   .search-box {
     grid-row: 1;
+    min-height: 48px;
+    padding-inline: 15px;
+    border-radius: 14px;
+    box-shadow: 0 5px 16px rgb(24 50 42 / 5%);
+  }
+
+  .category-filter-rail {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 5px;
+    direction: ltr;
+  }
+
+  .category-list {
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
+    margin: 0;
+    padding: 3px 2px 9px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    scroll-snap-type: inline proximity;
+    -webkit-overflow-scrolling: touch;
+    direction: rtl;
+  }
+
+  html[dir="ltr"] .category-list {
+    direction: ltr;
+  }
+
+  .category-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-scroll-button {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    color: var(--green);
+    background: var(--surface);
+    box-shadow: 0 3px 10px rgb(24 50 42 / 7%);
+    transition: color 160ms ease, background-color 160ms ease, opacity 160ms ease;
+  }
+
+  .category-scroll-button svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+  }
+
+  .category-scroll-button:disabled {
+    color: var(--muted);
+    background: var(--paper);
+    box-shadow: none;
+    cursor: default;
+    opacity: .45;
+  }
+
+  .category-scroll-button:not(:disabled):hover {
+    color: #fff;
+    background: var(--green);
+  }
+
+  .category-button {
+    min-height: 39px;
+    flex: 0 0 auto;
+    padding: 7px 15px;
+    border-radius: 999px;
+    scroll-snap-align: start;
+    font-size: .85rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .category-button[aria-pressed="true"] {
+    box-shadow: 0 4px 11px rgb(21 63 56 / 17%);
+  }
+
+  .category-button:disabled {
+    padding-inline: 12px;
   }
 
   .file-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-toolbar {
+    position: fixed;
+    z-index: 8;
+    right: 50%;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    display: flex;
+    width: min(520px, calc(100% - 22px));
+    min-height: 66px;
+    align-items: center;
+    justify-content: space-around;
+    gap: 2px;
+    padding: 7px 6px;
+    transform: translateX(50%);
+    border: 1px solid rgb(21 63 56 / 12%);
+    border-radius: 21px;
+    background: rgb(255 255 255 / 96%);
+    box-shadow: 0 8px 30px rgb(18 44 36 / 18%);
+    backdrop-filter: blur(16px);
+  }
+
+  .mobile-toolbar button,
+  .mobile-toolbar a {
+    display: flex;
+    min-width: 0;
+    min-height: 48px;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: 0;
+    border-radius: 13px;
+    color: #65766e;
+    background: transparent;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-toolbar svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+  }
+
+  .mobile-toolbar span {
+    font-size: 0.62rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .mobile-toolbar .mobile-toolbar-main {
+    position: relative;
+    top: -8px;
+    width: 54px;
+    min-width: 54px;
+    max-width: 54px;
+    min-height: 54px;
+    flex: 0 0 54px;
+    gap: 2px;
+    border: 4px solid var(--paper);
+    border-radius: 50%;
+    color: #fff;
+    background: var(--green);
+    box-shadow: 0 5px 14px rgb(21 63 56 / 25%);
+  }
+
+  .mobile-toolbar .mobile-toolbar-main svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .mobile-toolbar .mobile-toolbar-main span {
+    display: none;
+  }
+
+  .mobile-toolbar button:focus-visible,
+  .mobile-toolbar a:focus-visible {
+    outline: 3px solid #d5b967;
+    outline-offset: 2px;
+  }
+
+  .download-progress {
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+
+  body:has(.download-progress:not([hidden])) .toast.visible {
+    bottom: calc(220px + env(safe-area-inset-bottom));
   }
 }
 
@@ -709,7 +1019,7 @@ body.dark .pdf-icon {
   }
 
   .download-progress {
-    bottom: max(12px, env(safe-area-inset-bottom));
+    bottom: calc(84px + env(safe-area-inset-bottom));
     width: calc(100% - 20px);
     padding: 13px 14px 12px;
     border-radius: 16px;
@@ -730,5 +1040,43 @@ body.dark .pdf-icon {
 
   .footer {
     font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .page-width {
+    width: calc(100% - 30px);
+  }
+
+  .topbar {
+    gap: 4px;
+  }
+
+  .brand {
+    gap: 5px;
+    font-size: .78rem;
+  }
+
+  .brand-mark {
+    width: 29px;
+    height: 29px;
+    border-radius: 9px;
+    font-size: 1rem;
+  }
+
+  .toolbar {
+    gap: 0;
+  }
+
+  .toolbar .outline-button {
+    width: 31px;
+    min-width: 31px;
+    min-height: 34px;
+    padding: 4px;
+  }
+
+  .toolbar-icon {
+    width: 17px;
+    height: 17px;
   }
 }

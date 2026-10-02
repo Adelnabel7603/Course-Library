@@ -52,7 +52,7 @@
     <script type="module" src="script.js"></script>
   </head>
   <body>
-    <header class="hero">
+    <header class="hero" id="top">
       <nav class="topbar page-width" aria-label="التنقل">
         <a class="brand" href="./" aria-label="مكتبة المقررات، الصفحة الرئيسية">
           <span class="brand-mark" aria-hidden="true">م</span>
@@ -60,24 +60,24 @@
         </a>
 
         <div class="toolbar">
-          <button class="outline-button install-button" id="install-button" type="button" hidden>
-            <span aria-hidden="true">⬇</span>
+          <button class="outline-button install-button" id="install-button" type="button" aria-label="تثبيت التطبيق" data-aria-label="install">
+            <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4 4 4" /><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" /></svg>
             <span data-text="install">تثبيت التطبيق</span>
           </button>
           <a class="outline-button admin-link" href="./admin/login.html">
             <span aria-hidden="true">✎</span>
             <span data-text="admin">الإدارة</span>
           </a>
-          <button class="outline-button" id="share-button" type="button">
-            <span aria-hidden="true">↗</span>
+          <button class="outline-button" id="share-button" type="button" aria-label="مشاركة" data-aria-label="share">
+            <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.7 10.7 6.6-4.4m-6.6 7 6.6 4.4" /></svg>
             <span data-text="share">مشاركة</span>
           </button>
-          <button class="outline-button" id="theme-button" type="button">
-            <span aria-hidden="true" id="theme-icon">☾</span>
+          <button class="outline-button" id="theme-button" type="button" aria-label="الوضع الليلي">
+            <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true"><path id="theme-icon" d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z" /></svg>
             <span data-text="darkMode">الوضع الليلي</span>
           </button>
-          <button class="outline-button language-button" id="language-button" type="button">
-            <span aria-hidden="true">文</span>
+          <button class="outline-button language-button" id="language-button" type="button" aria-label="تغيير اللغة" data-aria-label="changeLanguage">
+            <svg class="toolbar-icon language-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18m0-18a14 14 0 0 0 0 18" /></svg>
             <span data-text="language">English</span>
           </button>
         </div>
@@ -93,14 +93,22 @@
         </div>
         <div class="total-card" aria-label="عدد الملفات">
           <strong id="total-count">0</strong>
-          <span data-text="pdfFiles">ملف PDF</span>
+          <span data-text="pdfFiles">ملف</span>
         </div>
       </div>
     </header>
 
     <main class="page-width main-content">
       <section class="controls" aria-label="البحث والتصنيف">
-        <div class="category-list" id="category-list" aria-label="تصفية حسب المادة"></div>
+        <div class="category-filter-rail">
+          <button class="category-scroll-button category-scroll-left" id="category-scroll-left" type="button" aria-label="تمرير التصنيفات إلى اليسار" data-aria-label="scrollCategoriesLeft" aria-controls="category-list" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
+          </button>
+          <div class="category-list" id="category-list" aria-label="تصفية حسب المادة"></div>
+          <button class="category-scroll-button category-scroll-right" id="category-scroll-right" type="button" aria-label="تمرير التصنيفات إلى اليمين" data-aria-label="scrollCategoriesRight" aria-controls="category-list" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+          </button>
+        </div>
         <label class="search-box">
           <span aria-hidden="true">⌕</span>
           <input
@@ -113,7 +121,7 @@
         </label>
       </section>
 
-      <section class="library" aria-labelledby="library-heading">
+      <section class="library" id="library" aria-labelledby="library-heading">
         <div class="section-heading">
           <h2 id="library-heading" data-text="filesHeading">الملفات</h2>
           <span id="result-count" aria-live="polite"></span>
@@ -127,6 +135,28 @@
       <span data-text="brand">مكتبة المقررات</span>
       <span id="footer-count"></span>
     </footer>
+    <nav class="mobile-toolbar" data-aria-label="quickNavigation" aria-label="التنقل السريع">
+      <button type="button" data-scroll="#top" data-aria-label="navHome" aria-label="الرئيسية">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1z" /></svg>
+        <span data-text="navHome">الرئيسية</span>
+      </button>
+      <button type="button" data-scroll="#search-input" data-aria-label="navSearch" aria-label="البحث">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 5 5" /></svg>
+        <span data-text="navSearch">بحث</span>
+      </button>
+      <button class="mobile-toolbar-main" type="button" data-scroll="#library" data-aria-label="navFiles" aria-label="الملفات">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5z" /><path d="M14 3v5h5M8 13h8M8 17h8" /></svg>
+        <span data-text="navFiles">الملفات</span>
+      </button>
+      <button type="button" data-scroll="#category-list" data-aria-label="navCategories" aria-label="التصنيفات">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16" /><circle cx="8" cy="5" r="1" /><circle cx="14" cy="12" r="1" /><circle cx="10" cy="19" r="1" /></svg>
+        <span data-text="navCategories">تصنيفات</span>
+      </button>
+      <a href="./admin/login.html" data-aria-label="admin" aria-label="الإدارة">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="m16 5 3 3M10 14l8.6-8.6a2.1 2.1 0 0 1 3 3L13 17l-4 1z" /></svg>
+        <span data-text="admin">الإدارة</span>
+      </a>
+    </nav>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <section
       class="download-progress"

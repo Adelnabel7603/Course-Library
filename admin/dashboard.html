@@ -89,17 +89,43 @@
         <div class="panel-heading"><div><h2 id="file-form-heading">إضافة ملف</h2><p class="muted">ارفع ملفًا، أدخل تفاصيله، ثم انشره مباشرة في المكتبة.</p></div></div>
         <form id="file-form" class="file-form">
           <input name="id" type="hidden" />
-          <label>اسم الملف<input name="name" required maxlength="180" /></label>
+          <label>اسم الملف<input name="name" maxlength="180" placeholder="اختياري؛ يُستخدم اسم الملف تلقائيًا" /></label>
           <label>التصنيف<select name="category_id" required></select></label>
           <label class="wide">وصف الملف<textarea name="description" rows="3"></textarea></label>
-          <label>الملف<input name="file" type="file" /></label>
-          <label>صورة الغلاف<input name="cover" type="file" accept="image/png,image/jpeg,image/webp,image/gif" /></label>
+          <div class="upload-field wide">
+            <span class="upload-label">الملفات المراد إضافتها</span>
+            <label class="upload-dropzone" for="file-input">
+              <span class="upload-symbol" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5" /><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></svg>
+              </span>
+              <span class="upload-copy">
+                <strong>اضغط لاختيار الملفات</strong>
+                <small>PDF ومستندات وصور وفيديو · حتى 1 GB لكل ملف</small>
+              </span>
+              <input
+                id="file-input"
+                name="file"
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+              />
+            </label>
+            <ul id="file-selection" class="file-selection" aria-live="polite"></ul>
+          </div>
+          <label class="cover-picker wide">
+            <span class="cover-picker-icon" aria-hidden="true">▧</span>
+            <span class="cover-picker-copy"><strong>صورة غلاف اختيارية</strong><small id="cover-file-name">تُستخدم مع ملف واحد فقط</small></span>
+            <span class="cover-picker-button">اختيار صورة</span>
+            <input name="cover" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+          </label>
           <label>الترتيب<input name="position" type="number" value="0" /></label>
           <label class="check-label"><input name="is_published" type="checkbox" checked /> ظاهر للزوار</label>
           <div class="form-actions wide">
             <button class="primary-button" type="submit">حفظ الملف</button>
             <button class="secondary-button" id="cancel-edit" type="button" hidden>إلغاء التعديل</button>
           </div>
+          <progress id="upload-progress" class="wide upload-progress" max="1" value="0" hidden></progress>
+          <p id="upload-status" class="upload-status wide" aria-live="polite" hidden></p>
         </form>
       </section>
 

@@ -1,5 +1,6 @@
 import { supabase } from "../services/supabase.js";
 import { legacyCategories, legacyFiles } from "../services/legacy-catalog.js";
+import { supabaseConfig } from "../config.js";
 
 const client = supabase;
 const message = document.querySelector("#dashboard-message");
@@ -11,12 +12,66 @@ const fileForm = document.querySelector("#file-form");
 const fileSearch = document.querySelector("#file-search");
 const fileTableBody = document.querySelector("#file-table-body");
 const fileCount = document.querySelector("#file-count");
+const uploadInput = document.querySelector("#file-input");
+const fileSelection = document.querySelector("#file-selection");
+const coverInput = fileForm.elements.cover;
+const coverFileName = document.querySelector("#cover-file-name");
+const uploadProgress = document.querySelector("#upload-progress");
+const uploadStatus = document.querySelector("#upload-status");
 const migrationInput = document.querySelector("#legacy-files");
 const migrationProgress = document.querySelector("#migration-progress");
 const migrationButton = document.querySelector("#migration-button");
 let categories = [];
 let files = [];
 let toastTimeout;
+let tusClientPromise;
+
+const maxFileSize = 1024 ** 3;
+const maxCoverSize = 50 * 1024 ** 2;
+const resumableUploadThreshold = 6 * 1024 ** 2;
+
+const uploadMimeTypes = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+]);
+
+const mimeTypesByExtension = {
+  ".pdf": "application/pdf",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".txt": "text/plain",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+};
+
+function getUploadMimeType(file) {
+  if (file.type) return file.type;
+  const extension = file.name.match(/\.[^.]+$/)?.[0].toLowerCase();
+  return mimeTypesByExtension[extension] || "application/octet-stream";
+}
 
 function notify(text, error = false) {
   toast.textContent = text;
@@ -24,6 +79,49 @@ function notify(text, error = false) {
   toast.classList.add("visible");
   window.clearTimeout(toastTimeout);
   toastTimeout = window.setTimeout(() => toast.classList.remove("visible"), 3500);
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024 ** 2) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 ** 2)).toFixed(1)} MB`;
+}
+
+function updateFileSelection() {
+  const selected = [...uploadInput.files];
+  fileSelection.replaceChildren(...selected.map((file, index) => {
+    const item = document.createElement("li");
+    const detail = document.createElement("span");
+    detail.className = "file-selection-detail";
+    const name = document.createElement("strong");
+    name.textContent = file.name;
+    const size = document.createElement("small");
+    size.textContent = formatFileSize(file.size);
+    detail.append(name, size);
+    const remove = document.createElement("button");
+    remove.className = "remove-selected-file";
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", `إزالة ${file.name}`);
+    remove.addEventListener("click", () => {
+      const transfer = new DataTransfer();
+      [...uploadInput.files].forEach((selectedFile, selectedIndex) => {
+        if (selectedIndex !== index) transfer.items.add(selectedFile);
+      });
+      uploadInput.files = transfer.files;
+      updateFileSelection();
+    });
+    item.append(detail, remove);
+    return item;
+  }));
+
+  coverInput.disabled = selected.length > 1;
+  if (selected.length > 1 && coverInput.files.length) {
+    coverInput.value = "";
+    coverFileName.textContent = "تُستخدم مع ملف واحد فقط";
+  }
+  if (selected.length === 1 && !fileForm.elements.name.value.trim()) {
+    fileForm.elements.name.value = selected[0].name.replace(/\.[^.]+$/, "");
+  }
 }
 
 function assertSuccess({ data, error }) {
@@ -241,13 +339,47 @@ async function moveFile(file, direction) {
   } catch (error) { notify(error.message, true); }
 }
 
-async function uploadAsset(file, prefix) {
+async function uploadAsset(file, prefix, onProgress = () => {}) {
   const extension = file.name.match(/\.[A-Za-z0-9]{1,10}$/)?.[0].toLowerCase() || "";
   const path = `${prefix}/${crypto.randomUUID()}${extension}`;
+  const contentType = getUploadMimeType(file);
+  if (file.size > resumableUploadThreshold) {
+    tusClientPromise ||= import("https://esm.sh/tus-js-client@4");
+    const { Upload } = await tusClientPromise;
+    const { data, error } = await client.auth.getSession();
+    if (error) throw error;
+    if (!data.session) throw new Error("انتهت جلسة الإدارة. سجّل الدخول مجددًا ثم أعد الرفع.");
+    const endpoint = new URL("/storage/v1/upload/resumable", supabaseConfig.url).href;
+    await new Promise((resolve, reject) => {
+      const upload = new Upload(file, {
+        endpoint,
+        chunkSize: resumableUploadThreshold,
+        retryDelays: [0, 1000, 3000, 5000],
+        headers: {
+          authorization: `Bearer ${data.session.access_token}`,
+          apikey: supabaseConfig.anonKey,
+          "x-upsert": "false",
+        },
+        metadata: {
+          bucketName: "library-files",
+          objectName: path,
+          contentType,
+          cacheControl: "3600",
+        },
+        onError: reject,
+        onProgress: (uploadedBytes) => onProgress(uploadedBytes),
+        onSuccess: resolve,
+      });
+      upload.start();
+    });
+    return path;
+  }
+
   assertSuccess(await client.storage.from("library-files").upload(path, file, {
-    contentType: file.type || "application/octet-stream",
+    contentType,
     upsert: false,
   }));
+  onProgress(file.size);
   return path;
 }
 
@@ -285,6 +417,7 @@ function editCategory(category) {
 }
 
 function editFile(file) {
+  resetFileForm();
   fileForm.elements.id.value = file.id;
   fileForm.elements.name.value = file.name;
   fileForm.elements.description.value = file.description || "";
@@ -301,12 +434,21 @@ function resetFileForm() {
   fileForm.elements.id.value = "";
   fileForm.elements.position.value = "0";
   fileForm.elements.is_published.checked = true;
+  coverInput.disabled = false;
+  coverFileName.textContent = "تُستخدم مع ملف واحد فقط";
+  uploadProgress.hidden = true;
+  uploadStatus.hidden = true;
   document.querySelector("#file-form-heading").textContent = "إضافة ملف";
   document.querySelector("#cancel-edit").hidden = true;
   renderCategoryOptions();
+  updateFileSelection();
 }
 
 document.querySelector("#cancel-edit").addEventListener("click", resetFileForm);
+uploadInput.addEventListener("change", updateFileSelection);
+coverInput.addEventListener("change", () => {
+  coverFileName.textContent = coverInput.files[0]?.name || "تُستخدم مع ملف واحد فقط";
+});
 
 fileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -319,39 +461,97 @@ fileForm.addEventListener("submit", async (event) => {
   let saved = false;
   let cleanupWarning = "";
   try {
-    const newFile = values.get("file");
-    const newCover = values.get("cover");
-    if (!existing && (!newFile || newFile.size === 0)) {
-      throw new Error("اختر ملفًا للرفع.");
+    const newFiles = [...uploadInput.files];
+    const newCover = coverInput.files[0];
+    if (!existing && newFiles.length === 0) {
+      throw new Error("اختر ملفًا واحدًا على الأقل للرفع.");
+    }
+    if (existing && newFiles.length > 1) {
+      throw new Error("اختر ملفًا واحدًا فقط عند تعديل ملف موجود.");
+    }
+    const oversizedFile = newFiles.find((file) => file.size > maxFileSize);
+    if (oversizedFile) {
+      throw new Error(`حجم «${oversizedFile.name}» أكبر من الحد المسموح (1 GB).`);
+    }
+    const unsupportedFile = newFiles.find((file) => !uploadMimeTypes.has(getUploadMimeType(file)));
+    if (unsupportedFile) {
+      throw new Error(`نوع الملف «${unsupportedFile.name}» غير مدعوم.`);
+    }
+    if (newCover?.size > maxCoverSize) {
+      throw new Error("حجم صورة الغلاف أكبر من الحد المسموح (50 MB).");
+    }
+    if (newCover && !getUploadMimeType(newCover).startsWith("image/")) {
+      throw new Error("اختر صورة صحيحة للغلاف.");
     }
     let objectPath = existing?.object_path;
     let coverPath = existing?.cover_path;
     let mimeType = existing?.mime_type;
     let sizeBytes = existing?.size_bytes;
-    if (newFile?.size) {
-      objectPath = await uploadAsset(newFile, "documents");
-      uploadedPaths.push(objectPath);
-      mimeType = newFile.type || "application/octet-stream";
-      sizeBytes = newFile.size;
+    const uploadedFilePaths = [];
+    const uploads = [...newFiles, ...(newCover?.size ? [newCover] : [])];
+    const uploadSize = uploads.reduce((total, file) => total + file.size, 0);
+    let completedBytes = 0;
+    uploadProgress.hidden = uploads.length === 0;
+    uploadProgress.max = Math.max(uploadSize, 1);
+    uploadProgress.value = 0;
+    uploadStatus.hidden = uploads.length === 0;
+    if (uploads.length) uploadStatus.textContent = `جارٍ رفع 0 من ${uploads.length}...`;
+    for (const [index, newFile] of newFiles.entries()) {
+      uploadStatus.textContent = `جارٍ رفع ${newFile.name}...`;
+      const path = await uploadAsset(newFile, "documents", (uploadedBytes) => {
+        uploadProgress.value = completedBytes + uploadedBytes;
+        const percent = newFile.size
+          ? Math.floor((uploadedBytes / newFile.size) * 100)
+          : 100;
+        uploadStatus.textContent = `جارٍ رفع ${newFile.name} · ${percent}%`;
+      });
+      uploadedFilePaths.push(path);
+      uploadedPaths.push(path);
+      completedBytes += newFile.size;
+      uploadProgress.value = completedBytes;
+      if (index === 0) {
+        objectPath = path;
+        mimeType = getUploadMimeType(newFile);
+        sizeBytes = newFile.size;
+      }
     }
     if (newCover?.size) {
-      coverPath = await uploadAsset(newCover, "covers");
+      uploadStatus.textContent = `جارٍ رفع ${newCover.name}...`;
+      coverPath = await uploadAsset(newCover, "covers", (uploadedBytes) => {
+        uploadProgress.value = completedBytes + uploadedBytes;
+        const percent = Math.floor((uploadedBytes / newCover.size) * 100);
+        uploadStatus.textContent = `جارٍ رفع صورة الغلاف · ${percent}%`;
+      });
       uploadedPaths.push(coverPath);
+      completedBytes += newCover.size;
+      uploadProgress.value = completedBytes;
     }
-    const record = {
-      name: values.get("name").trim(),
+    const baseRecord = {
       description: values.get("description").trim(),
       category_id: values.get("category_id"),
-      object_path: objectPath,
-      cover_path: coverPath || null,
-      mime_type: mimeType,
-      size_bytes: sizeBytes,
       position: Number(values.get("position")) || 0,
       is_published: values.has("is_published"),
     };
     const result = existing
-      ? await client.from("files").update(record).eq("id", existing.id)
-      : await client.from("files").insert(record);
+      ? await client.from("files").update({
+          ...baseRecord,
+          name: values.get("name").trim() || existing.name,
+          object_path: objectPath,
+          cover_path: coverPath || null,
+          mime_type: mimeType,
+          size_bytes: sizeBytes,
+        }).eq("id", existing.id)
+      : await client.from("files").insert(newFiles.map((file, index) => ({
+          ...baseRecord,
+          name: newFiles.length === 1 && values.get("name").trim()
+            ? values.get("name").trim()
+            : file.name.replace(/\.[^.]+$/, ""),
+          object_path: uploadedFilePaths[index],
+          cover_path: newFiles.length === 1 ? coverPath || null : null,
+          mime_type: getUploadMimeType(file),
+          size_bytes: file.size,
+          position: baseRecord.position + index,
+        })));
     assertSuccess(result);
     saved = true;
     const obsoletePaths = existing
@@ -366,7 +566,12 @@ fileForm.addEventListener("submit", async (event) => {
     }
     resetFileForm();
     await loadData();
-    notify(cleanupWarning || "تم حفظ الملف.", Boolean(cleanupWarning));
+    const successMessage = existing
+      ? "تم تحديث الملف."
+      : newFiles.length === 1
+        ? "تمت إضافة الملف."
+        : `تمت إضافة ${newFiles.length} ملفات.`;
+    notify(cleanupWarning || successMessage, Boolean(cleanupWarning));
   } catch (error) {
     if (!saved && uploadedPaths.length) {
       const { error: cleanupError } = await client.storage.from("library-files").remove(uploadedPaths);
@@ -380,6 +585,8 @@ fileForm.addEventListener("submit", async (event) => {
     }
     notify(error.message, true);
   } finally {
+    uploadProgress.hidden = true;
+    uploadStatus.hidden = true;
     submit.disabled = false;
   }
 });
@@ -424,7 +631,7 @@ migrationButton.addEventListener("click", async () => {
       if (existing) {
         assertSuccess(await client.from("files").update({
           category_id: categoryIds.get(legacy.category),
-          mime_type: file.type || "application/pdf",
+          mime_type: getUploadMimeType(file),
           size_bytes: file.size,
         }).eq("id", existing.id));
       } else {
@@ -433,7 +640,7 @@ migrationButton.addEventListener("click", async () => {
           description: "",
           category_id: categoryIds.get(legacy.category),
           object_path: path,
-          mime_type: file.type || "application/pdf",
+          mime_type: getUploadMimeType(file),
           size_bytes: file.size,
           is_published: true,
           position: index,
@@ -464,5 +671,7 @@ if (!client) {
       message.textContent = error.message;
       message.hidden = false;
     }
+
+    updateFileSelection();
   }
 }

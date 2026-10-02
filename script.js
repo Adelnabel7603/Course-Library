@@ -14,7 +14,8 @@ const translations = {
     admin: "الإدارة",
     install: "تثبيت التطبيق",
     installSuccess: "تم تثبيت التطبيق.",
-    installUnavailable: "لتثبيت التطبيق، افتح قائمة Chrome واختر «تثبيت التطبيق».",
+    installUnavailable: "افتح قائمة المتصفح واختر «إضافة إلى الشاشة الرئيسية» لتثبيت التطبيق.",
+    installIOS: "اضغط «مشاركة» في Safari، ثم اختر «إضافة إلى الشاشة الرئيسية».",
     share: "مشاركة",
     darkMode: "الوضع الليلي",
     lightMode: "الوضع النهاري",
@@ -23,6 +24,14 @@ const translations = {
     headline: "كل مادتك، في مكان واحد.",
     description: "تصفّح الملفات وافتحها أو نزّلها بسهولة.",
     pdfFiles: "ملف PDF",
+    navHome: "الرئيسية",
+    navSearch: "بحث",
+    navFiles: "الملفات",
+    navCategories: "تصنيفات",
+    quickNavigation: "التنقل السريع",
+    changeLanguage: "تغيير اللغة",
+    scrollCategoriesLeft: "تمرير التصنيفات إلى اليسار",
+    scrollCategoriesRight: "تمرير التصنيفات إلى اليمين",
     all: "الكل",
     searchPlaceholder: "ابحث باسم الملف...",
     filesHeading: "الملفات",
@@ -54,7 +63,8 @@ const translations = {
     admin: "Admin",
     install: "Install app",
     installSuccess: "The app has been installed.",
-    installUnavailable: "To install, open Chrome's menu and choose Install app.",
+    installUnavailable: "Open your browser menu and choose “Install app” or “Add to Home Screen”.",
+    installIOS: "In Safari, tap Share, then choose “Add to Home Screen”.",
     share: "Share",
     darkMode: "Dark mode",
     lightMode: "Light mode",
@@ -63,6 +73,14 @@ const translations = {
     headline: "All your courses, in one place.",
     description: "Browse, open, and download your files with ease.",
     pdfFiles: "PDF files",
+    navHome: "Home",
+    navSearch: "Search",
+    navFiles: "Files",
+    navCategories: "Categories",
+    quickNavigation: "Quick navigation",
+    changeLanguage: "Change language",
+    scrollCategoriesLeft: "Scroll categories left",
+    scrollCategoriesRight: "Scroll categories right",
     all: "All",
     searchPlaceholder: "Search files...",
     filesHeading: "Files",
@@ -92,6 +110,8 @@ const translations = {
 };
 
 const categoryList = document.querySelector("#category-list");
+const categoryScrollLeft = document.querySelector("#category-scroll-left");
+const categoryScrollRight = document.querySelector("#category-scroll-right");
 const fileGrid = document.querySelector("#file-grid");
 const searchInput = document.querySelector("#search-input");
 const resultCount = document.querySelector("#result-count");
@@ -146,6 +166,10 @@ function setLanguage(nextLanguage) {
     }
   });
 
+  document.querySelectorAll("[data-aria-label]").forEach((element) => {
+    element.setAttribute("aria-label", currentText()[element.dataset.ariaLabel]);
+  });
+
   searchInput.placeholder = currentText().searchPlaceholder;
   searchInput.setAttribute(
     "aria-label",
@@ -193,6 +217,45 @@ function renderCategories() {
       return button;
     }),
   );
+  updateCategoryScrollControls();
+}
+
+function updateCategoryScrollControls() {
+  const rail = categoryList.getBoundingClientRect();
+  const items = [...categoryList.children];
+  const hasHiddenLeft = items.some((item) =>
+    item.getBoundingClientRect().right <= rail.left + 1);
+  const hasHiddenRight = items.some((item) =>
+    item.getBoundingClientRect().left >= rail.right - 1);
+  const hasOverflow = hasHiddenLeft || hasHiddenRight;
+
+  categoryScrollLeft.hidden = !hasOverflow;
+  categoryScrollRight.hidden = !hasOverflow;
+  categoryScrollLeft.disabled = !hasHiddenLeft;
+  categoryScrollRight.disabled = !hasHiddenRight;
+}
+
+function scrollCategoryRail(direction) {
+  const rail = categoryList.getBoundingClientRect();
+  const items = [...categoryList.children]
+    .map((item) => ({ item, rect: item.getBoundingClientRect() }))
+    .sort((first, second) => first.rect.left - second.rect.left);
+  const visibleItems = items.filter(({ rect }) =>
+    rect.right > rail.left + 1 && rect.left < rail.right - 1);
+  if (!visibleItems.length) return;
+
+  const edgeItem = direction === "left"
+    ? visibleItems[0].item
+    : visibleItems[visibleItems.length - 1].item;
+  const edgeIndex = items.findIndex(({ item }) => item === edgeItem);
+  const nextIndex = edgeIndex + (direction === "left" ? -1 : 1);
+  if (nextIndex < 0 || nextIndex >= items.length) return;
+
+  items[nextIndex].item.scrollIntoView({
+    behavior: "smooth",
+    block: "nearest",
+    inline: "center",
+  });
 }
 
 function fileUrl(fileName) {
@@ -226,8 +289,16 @@ function renderFiles() {
       top.className = "file-card-top";
 
       const icon = document.createElement("span");
-      icon.className = "pdf-icon";
-      icon.textContent = file.mime_type?.startsWith("image/") ? "IMG" : "PDF";
+      const mimeType = file.mime_type || "";
+      const typeLabel = mimeType.startsWith("image/")
+        ? "IMG"
+        : mimeType.startsWith("video/")
+          ? "VIDEO"
+          : mimeType === "application/pdf" || !mimeType
+            ? "PDF"
+            : "FILE";
+      icon.className = `pdf-icon${mimeType.startsWith("video/") ? " video-icon" : ""}`;
+      icon.textContent = typeLabel;
       icon.setAttribute("aria-hidden", "true");
 
       const details = document.createElement("div");
@@ -245,7 +316,24 @@ function renderFiles() {
       details.append(title, category);
       top.append(icon, details);
 
-      if (file.coverUrl) {
+      if (mimeType.startsWith("image/")) {
+        const image = document.createElement("img");
+        image.className = "file-preview image-preview";
+        image.src = file.url;
+        image.alt = file.name;
+        image.loading = "lazy";
+        card.append(image);
+      } else if (mimeType.startsWith("video/")) {
+        const video = document.createElement("video");
+        video.className = "file-preview video-preview";
+        video.src = file.url;
+        video.controls = true;
+        video.preload = "metadata";
+        video.playsInline = true;
+        video.setAttribute("aria-label", file.name);
+        if (file.coverUrl) video.poster = file.coverUrl;
+        card.append(video);
+      } else if (file.coverUrl) {
         const cover = document.createElement("img");
         cover.className = "file-cover";
         cover.src = file.coverUrl;
@@ -290,7 +378,7 @@ function renderFiles() {
 
   totalCount.textContent = String(availableFiles.length);
   resultCount.textContent = text.count(visibleFiles.length);
-  footerCount.textContent = `${text.count(availableFiles.length)} · PDF`;
+  footerCount.textContent = text.count(availableFiles.length);
   emptyState.textContent = text.empty;
   emptyState.hidden = visibleFiles.length > 0;
   fileGrid.hidden = visibleFiles.length === 0;
@@ -317,7 +405,12 @@ async function loadCloudLibrary() {
 
 function setDarkMode(enabled) {
   document.body.classList.toggle("dark", enabled);
-  themeIcon.textContent = enabled ? "☀" : "☾";
+  themeIcon.setAttribute(
+    "d",
+    enabled
+      ? "M12 3v2m0 14v2m9-9h-2M5 12H3m15.36-6.36-1.42 1.42M7.06 16.94l-1.42 1.42m12.72 0-1.42-1.42M7.06 7.06 5.64 5.64M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"
+      : "M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5Z",
+  );
   themeButton.setAttribute(
     "aria-label",
     enabled ? currentText().lightMode : currentText().darkMode,
@@ -460,6 +553,19 @@ async function downloadFile(file, url) {
 }
 
 searchInput.addEventListener("input", renderFiles);
+document.querySelectorAll(".mobile-toolbar [data-scroll]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const target = document.querySelector(button.dataset.scroll);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (target === searchInput) searchInput.focus({ preventScroll: true });
+    }
+  });
+});
+categoryScrollLeft.addEventListener("click", () => scrollCategoryRail("left"));
+categoryScrollRight.addEventListener("click", () => scrollCategoryRail("right"));
+categoryList.addEventListener("scroll", updateCategoryScrollControls, { passive: true });
+window.addEventListener("resize", updateCategoryScrollControls);
 languageButton.addEventListener("click", () =>
   setLanguage(language === "ar" ? "en" : "ar"),
 );
@@ -480,6 +586,13 @@ shareButton.addEventListener("click", async () => {
   }
 });
 
+function isStandaloneApp() {
+  return window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+}
+
+installButton.hidden = isStandaloneApp();
+
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   installPrompt = event;
@@ -488,7 +601,9 @@ window.addEventListener("beforeinstallprompt", (event) => {
 
 installButton.addEventListener("click", async () => {
   if (!installPrompt) {
-    showToast(currentText().installUnavailable);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    showToast(isIOS ? currentText().installIOS : currentText().installUnavailable);
     return;
   }
   try {
@@ -505,6 +620,10 @@ installButton.addEventListener("click", async () => {
 window.addEventListener("appinstalled", () => {
   installPrompt = null;
   installButton.hidden = true;
+});
+
+window.matchMedia("(display-mode: standalone)").addEventListener("change", (event) => {
+  installButton.hidden = event.matches;
 });
 
 downloadCancelButton.addEventListener("click", () => {
