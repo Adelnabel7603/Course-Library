@@ -13,9 +13,11 @@ The existing public library remains available from its bundled files until the S
    ```
 
 5. Copy the project's Project URL and publishable (or legacy anon/public) key into `config.js`. These are intended for browser use with the provided RLS policies; never use or publish a secret or `service_role` key.
-6. Publish the project files to the GitHub Pages site using HTTPS, keeping the folder structure intact. Open `<your-site-url>/admin/login.html` and sign in. The dashboard checks the administrator allowlist and database policies protect every write operation.
+6. Publish updates to the GitHub Pages source branch (`main`). The existing Pages deployment publishes each push automatically; its URL (`https://adelnabel7603.github.io/Course-Library/`) stays unchanged as long as the repository name remains `Course-Library`. Open `<your-site-url>/admin/login.html` and sign in. The dashboard checks the administrator allowlist and database policies protect every write operation.
 7. On the dashboard, select the existing `legacy-pdfs` folder and click **رفع الملفات الحالية** to copy all 14 existing PDFs into persistent storage and add their current categories and metadata to the database.
 
 The public library loads active categories and published files from Supabase and listens for category/file changes. The storage bucket is private; visitors receive temporary signed links only for published file and cover records. Storage uploads are limited to 50 MB per file by the provided schema. The dashboard supports supported documents and image cover files; available MIME types and the size limit can be adjusted in `database/schema.sql`.
+
+The public site can be installed from a supported browser such as Chrome and caches its interface for offline access. New deployments are activated automatically when a visitor refreshes the page; the library data and private cloud files still require an internet connection.
 
 Do not delete `legacy-pdfs`: it is the original copy of the current files and is also the recovery copy for the migration.

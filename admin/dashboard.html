@@ -44,12 +44,43 @@
       </section>
 
       <section class="panel">
-        <div class="panel-heading"><div><h2>التصنيفات</h2><p class="muted">أنشئ تصنيفًا أو عدّله، أو أظهره كقريبًا.</p></div></div>
-        <form id="category-form" class="inline-form">
-          <input name="name_ar" placeholder="اسم التصنيف بالعربية" required />
-          <input name="name_en" placeholder="الاسم بالإنجليزية (اختياري)" />
-          <label class="check-label"><input name="is_coming_soon" type="checkbox" /> قريبًا</label>
-          <button class="primary-button" type="submit">إضافة تصنيف</button>
+        <div class="panel-heading category-panel-heading">
+          <div class="category-heading-copy">
+            <span class="category-heading-icon" aria-hidden="true">✳</span>
+            <div>
+              <p class="eyebrow">تنظيم المكتبة</p>
+              <h2>التصنيفات</h2>
+              <p class="muted">رتّب موادك وأنشئ فلاتر تسهّل على الزوار الوصول إلى الملفات.</p>
+            </div>
+          </div>
+          <span class="category-total"><strong id="category-count">0</strong> تصنيف</span>
+        </div>
+        <form id="category-form" class="category-create-form">
+          <div class="category-form-heading">
+            <div>
+              <h3>إضافة تصنيف جديد</h3>
+              <p class="muted">أدخل اسم المادة ليظهر كفلتر في المكتبة.</p>
+            </div>
+            <span class="category-form-spark" aria-hidden="true">＋</span>
+          </div>
+          <div class="category-form-fields">
+            <label class="category-input">
+              <span><span class="field-icon" aria-hidden="true">ع</span> الاسم بالعربية</span>
+              <input name="name_ar" placeholder="مثال: المحاسبة المالية" required />
+            </label>
+            <label class="category-input">
+              <span><span class="field-icon field-icon-en" aria-hidden="true">En</span> الاسم بالإنجليزية <span class="optional-label">اختياري</span></span>
+              <input name="name_en" placeholder="e.g. Financial Accounting" />
+            </label>
+            <label class="coming-soon-option">
+              <input name="is_coming_soon" type="checkbox" />
+              <span class="coming-soon-toggle" aria-hidden="true"></span>
+              <span><strong>إظهاره قريبًا</strong><small>أضف شارة «قريبًا» بدل الملفات</small></span>
+            </label>
+            <button class="primary-button category-submit" type="submit">
+              <span aria-hidden="true">＋</span> إضافة التصنيف
+            </button>
+          </div>
         </form>
         <div id="category-list" class="category-admin-list"></div>
       </section>

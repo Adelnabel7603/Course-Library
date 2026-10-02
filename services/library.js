@@ -40,9 +40,17 @@ export async function getPublicLibrary() {
       category: file.categories.name_ar,
       categoryNameEn: file.categories.name_en,
       url: signedUrls.get(file.object_path),
+      downloadUrl: createDownloadUrl(signedUrls.get(file.object_path), file.name),
       coverUrl: file.cover_path ? signedUrls.get(file.cover_path) : null,
     })),
   };
+}
+
+function createDownloadUrl(signedUrl, fileName) {
+  if (!signedUrl) return signedUrl;
+  const url = new URL(signedUrl);
+  url.searchParams.set("download", fileName);
+  return url.href;
 }
 
 export function subscribeToLibrary(onChange) {

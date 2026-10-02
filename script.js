@@ -12,6 +12,9 @@ const translations = {
   ar: {
     brand: "مكتبة المقررات",
     admin: "الإدارة",
+    install: "تثبيت التطبيق",
+    installSuccess: "تم تثبيت التطبيق.",
+    installUnavailable: "لتثبيت التطبيق، افتح قائمة Chrome واختر «تثبيت التطبيق».",
     share: "مشاركة",
     darkMode: "الوضع الليلي",
     lightMode: "الوضع النهاري",
@@ -26,6 +29,13 @@ const translations = {
     count: (count) => `${count} ملف`,
     open: "فتح",
     download: "تنزيل",
+    downloading: "جارٍ تنزيل الملف",
+    downloadComplete: "اكتمل التنزيل",
+    downloadFailed: "تعذر تنزيل الملف",
+    downloadCancelled: "تم إلغاء التنزيل",
+    cancelDownload: "إلغاء التنزيل",
+    downloadProgress: (received, total) => `${received} من ${total}`,
+    downloadStarting: "جارٍ الاتصال بالملف...",
     empty: "لا توجد ملفات تطابق بحثك.",
     comingSoon: "قريبًا",
     shareSuccess: "تم نسخ رابط الموقع.",
@@ -42,6 +52,9 @@ const translations = {
   en: {
     brand: "Course Library",
     admin: "Admin",
+    install: "Install app",
+    installSuccess: "The app has been installed.",
+    installUnavailable: "To install, open Chrome's menu and choose Install app.",
     share: "Share",
     darkMode: "Dark mode",
     lightMode: "Light mode",
@@ -56,6 +69,13 @@ const translations = {
     count: (count) => `${count} files`,
     open: "Open",
     download: "Download",
+    downloading: "Downloading file",
+    downloadComplete: "Download complete",
+    downloadFailed: "Download failed",
+    downloadCancelled: "Download cancelled",
+    cancelDownload: "Cancel download",
+    downloadProgress: (received, total) => `${received} of ${total}`,
+    downloadStarting: "Connecting to file...",
     empty: "No files match your search.",
     comingSoon: "Coming soon",
     shareSuccess: "Website link copied.",
@@ -82,12 +102,21 @@ const themeButton = document.querySelector("#theme-button");
 const themeIcon = document.querySelector("#theme-icon");
 const languageButton = document.querySelector("#language-button");
 const shareButton = document.querySelector("#share-button");
+const installButton = document.querySelector("#install-button");
 const toast = document.querySelector("#toast");
+const downloadProgress = document.querySelector("#download-progress");
+const downloadProgressTitle = document.querySelector("#download-progress-title");
+const downloadProgressDetail = document.querySelector("#download-progress-detail");
+const downloadProgressPercent = document.querySelector("#download-progress-percent");
+const downloadProgressBar = document.querySelector("#download-progress-bar");
+const downloadCancelButton = document.querySelector("#download-cancel");
 const siteUrl = new URL("./", window.location.href).href;
 
 let activeCategory = "all";
 let language = "ar";
 let toastTimeout;
+let installPrompt;
+let activeDownload;
 
 let categories = legacyCategories.map((category) => ({
   ...category,
@@ -244,19 +273,12 @@ function renderFiles() {
 
       const downloadLink = document.createElement("a");
       downloadLink.className = "file-action";
-      downloadLink.href = fileUrl(file.name);
-      if (cloudLibraryEnabled) {
-        downloadLink.href = file.url;
-        downloadLink.target = "_blank";
-        downloadLink.rel = "noopener";
-        downloadLink.addEventListener("click", () => {
-          recordDownload(file.id).catch((error) => {
-            showToast(error.message || "تعذر تسجيل التنزيل.");
-          });
-        });
-      } else {
-        downloadLink.download = file.name;
-      }
+      downloadLink.href = cloudLibraryEnabled ? file.downloadUrl : fileUrl(file.name);
+      downloadLink.download = getDownloadName(file);
+      downloadLink.addEventListener("click", (event) => {
+        event.preventDefault();
+        downloadFile(file, downloadLink.href);
+      });
       downloadLink.textContent = `↓ ${text.download}`;
       downloadLink.setAttribute("aria-label", `${text.download}: ${file.name}`);
       actions.append(openLink, downloadLink);
@@ -313,7 +335,128 @@ function showToast(message) {
   toast.textContent = message;
   toast.classList.add("visible");
   window.clearTimeout(toastTimeout);
-  toastTimeout = window.setTimeout(() => toast.classList.remove("visible"), 2600);
+  toastTimeout = window.setTimeout(() => toast.classList.remove("visible"), 3800);
+}
+
+function getDownloadName(file) {
+  if (file.mime_type === "application/pdf" && !/\.pdf$/i.test(file.name)) {
+    return `${file.name}.pdf`;
+  }
+  return file.name;
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const amount = bytes / (1024 ** unitIndex);
+  return `${amount.toFixed(unitIndex === 0 || amount >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function updateDownloadProgress(download, received, total) {
+  if (activeDownload !== download) return;
+  downloadProgressBar.classList.toggle("indeterminate", !total);
+  downloadProgressBar.value = total ? Math.min((received / total) * 100, 100) : 0;
+  downloadProgressPercent.textContent = total
+    ? `${Math.min(Math.round((received / total) * 100), 100)}%`
+    : "…";
+  downloadProgressDetail.textContent = total
+    ? currentText().downloadProgress(formatBytes(received), formatBytes(total))
+    : `${formatBytes(received)} · ${currentText().downloadStarting}`;
+}
+
+function finishDownload(download, title, detail = "") {
+  if (activeDownload !== download) return;
+  downloadProgress.classList.toggle("is-complete", title === currentText().downloadComplete);
+  downloadProgress.classList.toggle("is-error", title === currentText().downloadFailed);
+  downloadProgressTitle.textContent = title;
+  downloadProgressDetail.textContent = detail;
+  downloadProgressBar.classList.remove("indeterminate");
+  if (title === currentText().downloadComplete) {
+    downloadProgressBar.value = 100;
+    downloadProgressPercent.textContent = "100%";
+    downloadCancelButton.hidden = true;
+    window.setTimeout(() => {
+      if (activeDownload === download) {
+        downloadProgress.hidden = true;
+        activeDownload = null;
+      }
+    }, 3200);
+  } else {
+    downloadProgressPercent.textContent = "";
+    downloadCancelButton.hidden = true;
+    window.setTimeout(() => {
+      if (activeDownload === download) {
+        downloadProgress.hidden = true;
+        activeDownload = null;
+      }
+    }, 4600);
+  }
+}
+
+async function downloadFile(file, url) {
+  activeDownload?.controller.abort();
+  const download = { controller: new AbortController() };
+  activeDownload = download;
+  downloadProgress.hidden = false;
+  downloadProgress.classList.remove("is-complete", "is-error");
+  downloadProgressTitle.textContent = `${currentText().downloading}: ${getDownloadName(file)}`;
+  downloadProgressDetail.textContent = currentText().downloadStarting;
+  downloadProgressPercent.textContent = "0%";
+  downloadProgressBar.classList.remove("indeterminate");
+  downloadProgressBar.value = 0;
+  downloadCancelButton.hidden = false;
+  downloadCancelButton.setAttribute("aria-label", currentText().cancelDownload);
+
+  try {
+    const response = await fetch(url, { signal: download.controller.signal });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+
+    const total = Number(response.headers.get("content-length")) || file.size_bytes || 0;
+    let blob;
+    if (!response.body?.getReader) {
+      blob = await response.blob();
+      updateDownloadProgress(download, blob.size, total || blob.size);
+    } else {
+      const reader = response.body.getReader();
+      const chunks = [];
+      let received = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        updateDownloadProgress(download, received, total);
+      }
+      blob = new Blob(chunks, {
+        type: response.headers.get("content-type") || file.mime_type || "application/octet-stream",
+      });
+    }
+
+    if (activeDownload !== download) return;
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = getDownloadName(file);
+    anchor.hidden = true;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    finishDownload(download, currentText().downloadComplete, formatBytes(blob.size));
+    if (cloudLibraryEnabled) {
+      recordDownload(file.id).catch((error) => {
+        showToast(error.message || currentText().downloadFailed);
+      });
+    }
+  } catch (error) {
+    if (activeDownload !== download) return;
+    if (error.name === "AbortError") {
+      finishDownload(download, currentText().downloadCancelled);
+      return;
+    }
+    finishDownload(download, currentText().downloadFailed, error.message);
+  }
 }
 
 searchInput.addEventListener("input", renderFiles);
@@ -336,6 +479,69 @@ shareButton.addEventListener("click", async () => {
     showToast(currentText().shareError);
   }
 });
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  installPrompt = event;
+  installButton.hidden = false;
+});
+
+installButton.addEventListener("click", async () => {
+  if (!installPrompt) {
+    showToast(currentText().installUnavailable);
+    return;
+  }
+  try {
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") showToast(currentText().installSuccess);
+    installPrompt = null;
+    installButton.hidden = true;
+  } catch (error) {
+    showToast(error.message || currentText().installUnavailable);
+  }
+});
+
+window.addEventListener("appinstalled", () => {
+  installPrompt = null;
+  installButton.hidden = true;
+});
+
+downloadCancelButton.addEventListener("click", () => {
+  activeDownload?.controller.abort();
+});
+
+if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
+  let hadController = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (hadController) {
+      window.location.reload();
+      return;
+    }
+    hadController = true;
+  });
+  navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" })
+    .then((registration) => {
+      const checkForUpdate = () => {
+        if (document.visibilityState === "visible") {
+          registration.update().then(() => {
+            updateErrorReported = false;
+          }).catch((error) => {
+            if (!updateErrorReported) {
+              showToast(error.message || "تعذر التحقق من تحديث الموقع.");
+              updateErrorReported = true;
+            }
+          });
+        }
+      };
+      let updateErrorReported = false;
+      window.setInterval(checkForUpdate, 60_000);
+      document.addEventListener("visibilitychange", checkForUpdate);
+    })
+    .catch((error) => {
+      showToast(error.message || "تعذر تفعيل وضع التطبيق.");
+    });
+}
 
 try {
   setDarkMode(localStorage.getItem("course-library-theme") === "dark");

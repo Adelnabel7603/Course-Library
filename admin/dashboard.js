@@ -6,6 +6,7 @@ const message = document.querySelector("#dashboard-message");
 const toast = document.querySelector("#admin-toast");
 const categoryForm = document.querySelector("#category-form");
 const categoryList = document.querySelector("#category-list");
+const categoryCount = document.querySelector("#category-count");
 const fileForm = document.querySelector("#file-form");
 const fileSearch = document.querySelector("#file-search");
 const fileTableBody = document.querySelector("#file-table-body");
@@ -63,19 +64,38 @@ async function loadData() {
 }
 
 function renderCategories() {
+  categoryCount.textContent = String(categories.length);
   categoryList.replaceChildren(
-    ...categories.map((category) => {
-      const row = document.createElement("div");
+    ...categories.map((category, index) => {
+      const row = document.createElement("article");
       row.className = "category-row";
+      const info = document.createElement("div");
+      info.className = "category-info";
       const name = document.createElement("strong");
+      name.className = "category-name";
       name.textContent = category.name_ar;
       const status = document.createElement("span");
-      status.className = "muted";
+      status.className = `category-status${category.is_coming_soon ? " is-coming-soon" : ""}`;
       status.textContent = category.is_coming_soon ? "قريبًا" : category.is_active ? "نشط" : "مخفي";
+      info.append(name, status);
+      const actions = document.createElement("div");
+      actions.className = "category-actions";
       const edit = document.createElement("button");
       edit.className = "secondary-button small-button";
       edit.textContent = "تعديل";
       edit.addEventListener("click", () => editCategory(category));
+      const up = document.createElement("button");
+      up.className = "secondary-button small-button order-button";
+      up.textContent = "↑";
+      up.setAttribute("aria-label", `تحريك تصنيف ${category.name_ar} للأعلى`);
+      up.disabled = index === 0;
+      up.addEventListener("click", () => moveCategory(category, -1));
+      const down = document.createElement("button");
+      down.className = "secondary-button small-button order-button";
+      down.textContent = "↓";
+      down.setAttribute("aria-label", `تحريك تصنيف ${category.name_ar} للأسفل`);
+      down.disabled = index === categories.length - 1;
+      down.addEventListener("click", () => moveCategory(category, 1));
       const toggle = document.createElement("button");
       toggle.className = "secondary-button small-button";
       toggle.textContent = category.is_coming_soon
@@ -105,10 +125,28 @@ function renderCategories() {
           notify(`تعذر حذف التصنيف. انقل ملفاته أولًا إن وُجدت. ${error.message}`, true);
         }
       });
-      row.append(name, status, edit, toggle, remove);
+      actions.append(up, down, edit, toggle, remove);
+      row.append(info, actions);
       return row;
     }),
   );
+}
+
+async function moveCategory(category, direction) {
+  const ordered = [...categories].sort((a, b) => a.position - b.position);
+  const index = ordered.findIndex((item) => item.id === category.id);
+  const nextIndex = index + direction;
+  if (nextIndex < 0 || nextIndex >= ordered.length) return;
+  [ordered[index], ordered[nextIndex]] = [ordered[nextIndex], ordered[index]];
+  try {
+    for (const [position, item] of ordered.entries()) {
+      assertSuccess(await client.from("categories").update({ position }).eq("id", item.id));
+    }
+    await loadData();
+    notify("تم تحديث ترتيب التصنيفات.");
+  } catch (error) {
+    notify(error.message, true);
+  }
 }
 
 function renderCategoryOptions(selectedId = "") {
@@ -124,23 +162,27 @@ function renderCategoryOptions(selectedId = "") {
 
 function renderFiles() {
   const query = fileSearch.value.trim().toLocaleLowerCase();
-  const visibleFiles = files.filter((file) =>
+  const orderedFiles = [...files].sort((a, b) =>
+    a.position - b.position || new Date(b.created_at) - new Date(a.created_at),
+  );
+  const visibleFiles = orderedFiles.filter((file) =>
     `${file.name} ${file.description} ${file.categories?.name_ar || ""}`
       .toLocaleLowerCase()
       .includes(query),
   );
   fileCount.textContent = `${visibleFiles.length} من ${files.length} ملف`;
-  fileTableBody.replaceChildren(...visibleFiles.map((file, index) => {
+  fileTableBody.replaceChildren(...visibleFiles.map((file) => {
     const row = document.createElement("tr");
     const cells = [
-      file.name,
-      file.categories?.name_ar || "—",
-      new Date(file.created_at).toLocaleDateString("ar"),
-      String(file.downloads),
-      file.is_published ? "منشور" : "مخفي",
+      ["الملف", file.name],
+      ["التصنيف", file.categories?.name_ar || "—"],
+      ["تاريخ الإضافة", new Date(file.created_at).toLocaleDateString("ar")],
+      ["التنزيلات", String(file.downloads)],
+      ["الحالة", file.is_published ? "منشور" : "مخفي"],
     ];
-    for (const value of cells) {
+    for (const [label, value] of cells) {
       const cell = document.createElement("td");
+      cell.dataset.label = label;
       cell.textContent = value;
       row.append(cell);
     }
@@ -163,13 +205,14 @@ function renderFiles() {
     up.className = "secondary-button small-button";
     up.textContent = "↑";
     up.setAttribute("aria-label", `تحريك ${file.name} للأعلى`);
+    const index = orderedFiles.findIndex((item) => item.id === file.id);
     up.disabled = index === 0;
     up.addEventListener("click", () => moveFile(file, -1));
     const down = document.createElement("button");
     down.className = "secondary-button small-button";
     down.textContent = "↓";
     down.setAttribute("aria-label", `تحريك ${file.name} للأسفل`);
-    down.disabled = index === visibleFiles.length - 1;
+    down.disabled = index === orderedFiles.length - 1;
     down.addEventListener("click", () => moveFile(file, 1));
     const remove = document.createElement("button");
     remove.className = "danger-button small-button";
@@ -182,19 +225,25 @@ function renderFiles() {
 }
 
 async function moveFile(file, direction) {
-  const ordered = [...files].sort((a, b) => a.position - b.position);
+  const ordered = [...files].sort((a, b) =>
+    a.position - b.position || new Date(b.created_at) - new Date(a.created_at),
+  );
   const index = ordered.findIndex((item) => item.id === file.id);
-  const next = ordered[index + direction];
-  if (!next) return;
+  const nextIndex = index + direction;
+  if (nextIndex < 0 || nextIndex >= ordered.length) return;
+  [ordered[index], ordered[nextIndex]] = [ordered[nextIndex], ordered[index]];
   try {
-    assertSuccess(await client.from("files").update({ position: next.position }).eq("id", file.id));
-    assertSuccess(await client.from("files").update({ position: file.position }).eq("id", next.id));
+    for (const [position, item] of ordered.entries()) {
+      assertSuccess(await client.from("files").update({ position }).eq("id", item.id));
+    }
     await loadData();
+    notify("تم تحديث ترتيب الملفات.");
   } catch (error) { notify(error.message, true); }
 }
 
 async function uploadAsset(file, prefix) {
-  const path = `${prefix}/${crypto.randomUUID()}${file.name.match(/\.[A-Za-z0-9]{1,10}$/)?.[0].toLowerCase() || ""}`;
+  const extension = file.name.match(/\.[A-Za-z0-9]{1,10}$/)?.[0].toLowerCase() || "";
+  const path = `${prefix}/${crypto.randomUUID()}${extension}`;
   assertSuccess(await client.storage.from("library-files").upload(path, file, {
     contentType: file.type || "application/octet-stream",
     upsert: false,
@@ -369,7 +418,7 @@ migrationButton.addEventListener("click", async () => {
     const categoryIds = new Map(categories.map((category) => [category.name_ar, category.id]));
     for (const [index, legacy] of legacyFiles.entries()) {
       const file = selected.get(legacy.name);
-      const existing = files.find((row) => row.name === legacy.name.replace(/\.pdf$/i, ""));
+      const existing = files.find((row) => row.name === legacy.name);
       let path = existing?.object_path;
       if (!path) path = await uploadAsset(file, "documents");
       if (existing) {
