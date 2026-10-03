@@ -80,3 +80,40 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(request)),
   );
 });
+
+self.addEventListener("push", (event) => {
+  const payload = event.data ? event.data.json() : {};
+  const title = payload.title || "مكتبة المقررات";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body || "يوجد تحديث جديد في المكتبة.",
+      icon: new URL("./app-icon-192.png", self.registration.scope).href,
+      badge: new URL("./favicon.svg", self.registration.scope).href,
+      data: { url: payload.url || self.registration.scope },
+      tag: payload.id || "course-library-update",
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(
+    event.notification.data?.url || self.registration.scope,
+    self.registration.scope,
+  );
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then(async (clients) => {
+        const existing = clients.find((client) => {
+          const current = new URL(client.url);
+          return current.origin === target.origin &&
+            current.pathname.startsWith(new URL(self.registration.scope).pathname);
+        });
+        if (existing) {
+          await existing.navigate(target.href);
+          return existing.focus();
+        }
+        return self.clients.openWindow(target.href);
+      }),
+  );
+});

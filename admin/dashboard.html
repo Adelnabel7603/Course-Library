@@ -59,7 +59,7 @@
           <div class="category-form-heading">
             <div>
               <h3>إضافة تصنيف جديد</h3>
-              <p class="muted">أدخل اسم المادة ليظهر كفلتر في المكتبة.</p>
+              <p class="muted">أدخل اسم المادة، ويمكنك وضعها داخل تصنيف موجود.</p>
             </div>
             <span class="category-form-spark" aria-hidden="true">＋</span>
           </div>
@@ -71,6 +71,10 @@
             <label class="category-input">
               <span><span class="field-icon field-icon-en" aria-hidden="true">En</span> الاسم بالإنجليزية <span class="optional-label">اختياري</span></span>
               <input name="name_en" placeholder="e.g. Financial Accounting" />
+            </label>
+            <label class="category-input">
+              <span><span class="field-icon" aria-hidden="true">↳</span> داخل تصنيف رئيسي <span class="optional-label">اختياري</span></span>
+              <select name="parent_id"></select>
             </label>
             <label class="coming-soon-option">
               <input name="is_coming_soon" type="checkbox" />
@@ -89,9 +93,9 @@
         <div class="panel-heading"><div><h2 id="file-form-heading">إضافة ملف</h2><p class="muted">ارفع ملفًا، أدخل تفاصيله، ثم انشره مباشرة في المكتبة.</p></div></div>
         <form id="file-form" class="file-form">
           <input name="id" type="hidden" />
-          <label>اسم الملف<input name="name" maxlength="180" placeholder="اختياري؛ يُستخدم اسم الملف تلقائيًا" /></label>
-          <label>التصنيف<select name="category_id" required></select></label>
-          <label class="wide">وصف الملف<textarea name="description" rows="3"></textarea></label>
+          <label class="file-default-field">اسم الملف<input name="name" maxlength="180" placeholder="اختياري؛ يُستخدم اسم الملف تلقائيًا" /></label>
+          <label class="file-default-field">التصنيف<select name="category_id" required></select></label>
+          <label class="wide file-default-field">وصف الملف<textarea name="description" rows="3"></textarea></label>
           <div class="upload-field wide">
             <span class="upload-label">الملفات المراد إضافتها</span>
             <label class="upload-dropzone" for="file-input">
@@ -112,6 +116,7 @@
             </label>
             <ul id="file-selection" class="file-selection" aria-live="polite"></ul>
           </div>
+          <div id="upload-editors" class="upload-editors wide"></div>
           <label class="cover-picker wide">
             <span class="cover-picker-icon" aria-hidden="true">▧</span>
             <span class="cover-picker-copy"><strong>صورة غلاف اختيارية</strong><small id="cover-file-name">تُستخدم مع ملف واحد فقط</small></span>
@@ -127,6 +132,21 @@
           <progress id="upload-progress" class="wide upload-progress" max="1" value="0" hidden></progress>
           <p id="upload-status" class="upload-status wide" aria-live="polite" hidden></p>
         </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div><h2>إعلان أو تعليمات للزوار</h2><p class="muted">يظهر النص في جرس الإشعارات. تنبيه الجهاز يحتاج إكمال إعداد إشعارات النظام.</p></div>
+        </div>
+        <form id="notification-form" class="notification-form">
+          <label>عنوان الإشعار<input name="title" maxlength="180" placeholder="مثال: تعليمات امتحان منتصف الفصل" required /></label>
+          <label>نص الإشعار<textarea name="body" rows="4" maxlength="2000" placeholder="اكتب الإعلان أو التعليمات التي تريد أن يرجع إليها الزوار..." required></textarea></label>
+          <button class="primary-button" type="submit">نشر الإشعار</button>
+        </form>
+        <div class="admin-notification-history">
+          <h3>الإشعارات المنشورة</h3>
+          <ul id="admin-notification-list" class="admin-notification-list"></ul>
+        </div>
       </section>
 
       <section class="panel">

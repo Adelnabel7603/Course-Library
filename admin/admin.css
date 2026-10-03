@@ -329,6 +329,31 @@ button:disabled { cursor: wait; opacity: .6; }
 }
 .file-selection { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .file-selection:empty { display: none; }
+.upload-editors { display: grid; gap: 11px; }
+.upload-editor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #dfe9e1;
+  border-radius: 13px;
+  background: #fbfdfb;
+}
+.upload-editor legend { padding-inline: 6px; color: #315b4a; font-size: .83rem; font-weight: 700; }
+.upload-editor > label:not(.check-label) { display: grid; align-content: start; gap: 6px; font-size: .82rem; }
+.upload-editor-cover {
+  position: relative;
+  min-height: 42px;
+  align-content: center !important;
+  padding: 7px 10px;
+  border: 1px dashed #9ab6a4;
+  border-radius: 10px;
+  color: #315b4a;
+  cursor: pointer;
+}
+.upload-editor-cover input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 .file-selection li {
   display: flex;
   min-width: 0;
@@ -382,6 +407,16 @@ button:disabled { cursor: wait; opacity: .6; }
 .setup-steps li { margin-block: 4px; }
 progress { width: 100%; height: 12px; margin-top: 12px; accent-color: var(--green); }
 .file-list-heading input { max-width: 300px; }
+.notification-form { display: grid; gap: 14px; }
+.notification-form label { display: grid; gap: 6px; color: #42564e; font-size: .9rem; font-weight: 600; }
+.notification-form .primary-button { justify-self: start; }
+.admin-notification-history { margin-top: 24px; }
+.admin-notification-history h3 { margin: 0 0 10px; font-size: .95rem; }
+.admin-notification-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.admin-notification-list li { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fbfcfa; }
+.admin-notification-list strong { display: block; }
+.admin-notification-list p { margin: 4px 0; color: var(--muted); white-space: pre-wrap; }
+.admin-notification-list time { color: var(--muted); font-size: .78rem; }
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 13px; }
 table { width: 100%; border-collapse: collapse; text-align: start; }
 th, td { padding: 11px 9px; border-bottom: 1px solid var(--line); vertical-align: middle; }
@@ -454,6 +489,7 @@ td { font-size: .88rem; }
   .category-actions .small-button { min-height: 42px; flex: 1 1 auto; }
   .file-form { grid-template-columns: 1fr; }
   .wide { grid-column: auto; }
+  .upload-editor { grid-template-columns: 1fr; }
   .upload-dropzone { min-height: 92px; padding: 12px; }
   .upload-symbol { width: 42px; height: 42px; }
   .cover-picker { flex-wrap: wrap; }

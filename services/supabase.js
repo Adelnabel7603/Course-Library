@@ -1,15 +1,8 @@
-import { supabaseConfig } from "../config.js";
-
-const configured =
-  /^https:\/\//i.test(supabaseConfig.url) &&
-  supabaseConfig.anonKey.length > 30 &&
-  !supabaseConfig.anonKey.includes("YOUR_");
-
-export const isSupabaseConfigured = configured;
+import { isSupabaseConfigured, supabaseConfig } from "../config.js";
 
 export let supabase = null;
 
-if (configured) {
+if (isSupabaseConfigured) {
   const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
   supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },

@@ -1,19 +1,26 @@
-import { supabase } from "../services/supabase.js";
 import { legacyCategories, legacyFiles } from "../services/legacy-catalog.js";
 import { supabaseConfig } from "../config.js";
 
-const client = supabase;
+const localFeaturePreview =
+  window.location.protocol === "file:" &&
+  new URLSearchParams(window.location.search).get("preview") === "features";
+const { supabase: client } = localFeaturePreview
+  ? { supabase: null }
+  : await import("../services/supabase.js");
 const message = document.querySelector("#dashboard-message");
 const toast = document.querySelector("#admin-toast");
 const categoryForm = document.querySelector("#category-form");
 const categoryList = document.querySelector("#category-list");
 const categoryCount = document.querySelector("#category-count");
 const fileForm = document.querySelector("#file-form");
+const notificationForm = document.querySelector("#notification-form");
+const adminNotificationList = document.querySelector("#admin-notification-list");
 const fileSearch = document.querySelector("#file-search");
 const fileTableBody = document.querySelector("#file-table-body");
 const fileCount = document.querySelector("#file-count");
 const uploadInput = document.querySelector("#file-input");
 const fileSelection = document.querySelector("#file-selection");
+const uploadEditors = document.querySelector("#upload-editors");
 const coverInput = fileForm.elements.cover;
 const coverFileName = document.querySelector("#cover-file-name");
 const uploadProgress = document.querySelector("#upload-progress");
@@ -23,8 +30,10 @@ const migrationProgress = document.querySelector("#migration-progress");
 const migrationButton = document.querySelector("#migration-button");
 let categories = [];
 let files = [];
+let notifications = [];
 let toastTimeout;
 let tusClientPromise;
+const uploadDrafts = new Map();
 
 const maxFileSize = 1024 ** 3;
 const maxCoverSize = 50 * 1024 ** 2;
@@ -88,6 +97,23 @@ function formatFileSize(bytes) {
 
 function updateFileSelection() {
   const selected = [...uploadInput.files];
+  const isBatchUpload = selected.length > 0 && !fileForm.elements.id.value;
+  for (const file of selected) {
+    if (!uploadDrafts.has(file)) {
+      uploadDrafts.set(file, {
+        name: selected.length === 1 && fileForm.elements.name.value.trim()
+          ? fileForm.elements.name.value.trim()
+          : file.name.replace(/\.[^.]+$/, ""),
+        description: fileForm.elements.description.value.trim(),
+        categoryId: fileForm.elements.category_id.value,
+        isPublished: fileForm.elements.is_published.checked,
+        cover: null,
+      });
+    }
+  }
+  for (const file of uploadDrafts.keys()) {
+    if (!selected.includes(file)) uploadDrafts.delete(file);
+  }
   fileSelection.replaceChildren(...selected.map((file, index) => {
     const item = document.createElement("li");
     const detail = document.createElement("span");
@@ -122,11 +148,71 @@ function updateFileSelection() {
   if (selected.length === 1 && !fileForm.elements.name.value.trim()) {
     fileForm.elements.name.value = selected[0].name.replace(/\.[^.]+$/, "");
   }
+  document.querySelectorAll(".file-default-field, .cover-picker").forEach((field) => {
+    field.hidden = isBatchUpload;
+  });
+  uploadEditors.hidden = !isBatchUpload;
+  uploadEditors.replaceChildren(...(isBatchUpload
+    ? selected.map((file, index) => createUploadEditor(file, index))
+    : []));
 }
 
 function assertSuccess({ data, error }) {
   if (error) throw error;
   return data;
+}
+
+async function sendPushAlerts(rows) {
+  if (!supabaseConfig.vapidPublicKey) return "";
+  const results = await Promise.allSettled(rows.map(({ id }) =>
+    client.functions.invoke("send-push-notification", {
+      body: { notificationId: id },
+    }),
+  ));
+  const errors = new Set();
+  for (const result of results) {
+    if (result.status === "rejected") {
+      errors.add(result.reason?.message || "تعذر إرسال تنبيه الجهاز.");
+    } else if (result.value.error) {
+      errors.add(result.value.error.message || "تعذر إرسال تنبيه الجهاز.");
+    } else if (result.value.data?.failed) {
+      errors.add(`تعذر إرسال التنبيه إلى ${result.value.data.failed} جهاز.`);
+    }
+  }
+  return errors.size
+    ? `تعذر إرسال تنبيه الأجهزة (${[...errors].join("؛ ")}). الإشعار محفوظ في الجرس.`
+    : "";
+}
+
+async function publishFileNotifications(fileRows) {
+  const notificationRows = assertSuccess(await client.from("notifications")
+    .insert(fileRows.filter((file) => file.is_published).map((file) => ({
+      title: `ملف جديد: ${file.name}`,
+      body: file.description || `أُضيف إلى تصنيف ${categories.find(
+        (category) => category.id === file.category_id,
+      )?.name_ar || ""}.`,
+      type: "file",
+      file_id: file.id,
+    })))
+    .select("id"));
+  return sendPushAlerts(notificationRows);
+}
+
+function renderAdminNotifications() {
+  adminNotificationList.replaceChildren(...notifications.map((item) => {
+    const row = document.createElement("li");
+    const details = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const body = document.createElement("p");
+    body.textContent = item.body;
+    const created = document.createElement("time");
+    created.dateTime = item.created_at;
+    created.textContent = new Date(item.created_at).toLocaleString("ar");
+    details.append(title, body, created);
+    row.append(details);
+    return row;
+  }));
 }
 
 async function requireAdmin() {
@@ -150,15 +236,45 @@ async function requireAdmin() {
 }
 
 async function loadData() {
-  const [categoryData, fileData] = await Promise.all([
+  if (localFeaturePreview) {
+    const saved = localStorage.getItem("course-library-feature-preview");
+    categories = saved
+      ? JSON.parse(saved)
+      : legacyCategories.map((category, index) => ({
+          ...category,
+          id: `local-category-${index}`,
+          parent_id: null,
+          is_active: true,
+        }));
+    const savedFiles = localStorage.getItem("course-library-feature-preview-files");
+    files = savedFiles
+      ? JSON.parse(savedFiles).map((file) => ({
+          ...file,
+          categories: categories.find((category) => category.id === file.category_id),
+        }))
+      : [];
+    const savedNotifications = localStorage.getItem("course-library-feature-preview-notifications");
+    notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
+    renderCategories();
+    renderParentCategoryOptions();
+    renderCategoryOptions();
+    renderFiles();
+    renderAdminNotifications();
+    return;
+  }
+  const [categoryData, fileData, notificationData] = await Promise.all([
     client.from("categories").select("*").order("position"),
-    client.from("files").select("*, categories(id, name_ar, name_en)").order("position").order("created_at", { ascending: false }),
+    client.from("files").select("*, categories(id, name_ar, name_en, parent_id)").order("position").order("created_at", { ascending: false }),
+    client.from("notifications").select("*").order("created_at", { ascending: false }).limit(50),
   ]);
   categories = assertSuccess(categoryData);
   files = assertSuccess(fileData);
+  notifications = assertSuccess(notificationData);
   renderCategories();
+  renderParentCategoryOptions();
   renderCategoryOptions();
   renderFiles();
+  renderAdminNotifications();
 }
 
 function renderCategories() {
@@ -171,7 +287,7 @@ function renderCategories() {
       info.className = "category-info";
       const name = document.createElement("strong");
       name.className = "category-name";
-      name.textContent = category.name_ar;
+      name.textContent = categoryPath(category);
       const status = document.createElement("span");
       status.className = `category-status${category.is_coming_soon ? " is-coming-soon" : ""}`;
       status.textContent = category.is_coming_soon ? "قريبًا" : category.is_active ? "نشط" : "مخفي";
@@ -224,10 +340,21 @@ function renderCategories() {
         }
       });
       actions.append(up, down, edit, toggle, remove);
+      actions.hidden = localFeaturePreview;
       row.append(info, actions);
       return row;
     }),
   );
+}
+
+function categoryPath(category) {
+  const parts = [category.name_ar];
+  let parent = categories.find((item) => item.id === category.parent_id);
+  while (parent) {
+    parts.unshift(parent.name_ar);
+    parent = categories.find((item) => item.id === parent.parent_id);
+  }
+  return parts.join(" / ");
 }
 
 async function moveCategory(category, direction) {
@@ -251,11 +378,83 @@ function renderCategoryOptions(selectedId = "") {
   const options = categories.map((category) => {
     const option = document.createElement("option");
     option.value = category.id;
-    option.textContent = `${category.name_ar}${category.is_coming_soon ? " — قريبًا" : ""}`;
+    option.textContent = `${categoryPath(category)}${category.is_coming_soon ? " — قريبًا" : ""}`;
     option.selected = category.id === selectedId;
     return option;
   });
   fileForm.elements.category_id.replaceChildren(...options);
+}
+
+function renderParentCategoryOptions() {
+  const options = [new Option("بدون تصنيف أب (رئيسي)", "")];
+  for (const category of categories) {
+    options.push(new Option(categoryPath(category), category.id));
+  }
+  categoryForm.elements.parent_id.replaceChildren(...options);
+}
+
+function createUploadEditor(file, index) {
+  const draft = uploadDrafts.get(file);
+  const editor = document.createElement("fieldset");
+  editor.className = "upload-editor";
+  const legend = document.createElement("legend");
+  legend.textContent = `تفاصيل ${file.type === "text/plain" ? "النص" : `الملف ${index + 1}`}`;
+
+  const nameField = document.createElement("label");
+  nameField.textContent = "الاسم";
+  const nameInput = document.createElement("input");
+  nameInput.maxLength = 180;
+  nameInput.required = true;
+  nameInput.value = draft.name;
+  nameInput.addEventListener("input", () => { draft.name = nameInput.value; });
+  nameField.append(nameInput);
+
+  const categoryField = document.createElement("label");
+  categoryField.textContent = "التصنيف";
+  const categorySelect = document.createElement("select");
+  categorySelect.required = true;
+  categorySelect.replaceChildren(...categories.map((category) => {
+    const option = new Option(categoryPath(category), category.id);
+    option.selected = category.id === draft.categoryId;
+    return option;
+  }));
+  categorySelect.addEventListener("change", () => { draft.categoryId = categorySelect.value; });
+  categoryField.append(categorySelect);
+
+  const descriptionField = document.createElement("label");
+  descriptionField.className = "wide";
+  descriptionField.textContent = file.type === "text/plain" ? "ملخص التعليمات" : "الوصف";
+  const descriptionInput = document.createElement("textarea");
+  descriptionInput.rows = 2;
+  descriptionInput.value = draft.description;
+  descriptionInput.addEventListener("input", () => { draft.description = descriptionInput.value; });
+  descriptionField.append(descriptionInput);
+
+  const coverField = document.createElement("label");
+  coverField.className = "upload-editor-cover";
+  coverField.textContent = draft.cover?.name || "صورة غلاف لهذا الملف (اختياري)";
+  const coverInputForFile = document.createElement("input");
+  coverInputForFile.type = "file";
+  coverInputForFile.accept = "image/png,image/jpeg,image/webp,image/gif";
+  coverInputForFile.addEventListener("change", () => {
+    draft.cover = coverInputForFile.files[0] || null;
+    coverField.firstChild.textContent =
+      draft.cover?.name || "صورة غلاف لهذا الملف (اختياري)";
+  });
+  coverField.append(coverInputForFile);
+
+  const publishedField = document.createElement("label");
+  publishedField.className = "check-label";
+  const publishedInput = document.createElement("input");
+  publishedInput.type = "checkbox";
+  publishedInput.checked = draft.isPublished;
+  publishedInput.addEventListener("change", () => {
+    draft.isPublished = publishedInput.checked;
+  });
+  publishedField.append(publishedInput, document.createTextNode(" ظاهر للزوار"));
+
+  editor.append(legend, nameField, categoryField, descriptionField, coverField, publishedField);
+  return editor;
 }
 
 function renderFiles() {
@@ -273,7 +472,9 @@ function renderFiles() {
     const row = document.createElement("tr");
     const cells = [
       ["الملف", file.name],
-      ["التصنيف", file.categories?.name_ar || "—"],
+      ["التصنيف", file.categories
+        ? categoryPath(categories.find((category) => category.id === file.category_id) || file.categories)
+        : "—"],
       ["تاريخ الإضافة", new Date(file.created_at).toLocaleDateString("ar")],
       ["التنزيلات", String(file.downloads)],
       ["الحالة", file.is_published ? "منشور" : "مخفي"],
@@ -295,8 +496,44 @@ function renderFiles() {
     toggle.textContent = file.is_published ? "إخفاء" : "إظهار";
     toggle.addEventListener("click", async () => {
       try {
-        assertSuccess(await client.from("files").update({ is_published: !file.is_published }).eq("id", file.id));
+        if (localFeaturePreview) {
+          const isPublishing = !file.is_published;
+          files = files.map((item) => item.id === file.id
+            ? { ...item, is_published: !item.is_published }
+            : item);
+          if (isPublishing) {
+            notifications = [{
+              id: crypto.randomUUID(),
+              title: `ملف جديد: ${file.name}`,
+              body: file.description || "",
+              type: "file",
+              file_id: file.id,
+              created_at: new Date().toISOString(),
+            }, ...notifications];
+            localStorage.setItem(
+              "course-library-feature-preview-notifications",
+              JSON.stringify(notifications),
+            );
+          }
+          localStorage.setItem("course-library-feature-preview-files", JSON.stringify(files));
+          await loadData();
+          return;
+        }
+        const publishedFile = assertSuccess(await client.from("files")
+          .update({ is_published: !file.is_published })
+          .eq("id", file.id)
+          .select("id, name, description, category_id, is_published")
+          .single());
+        let notificationWarning = "";
+        if (publishedFile.is_published) {
+          try {
+            notificationWarning = await publishFileNotifications([publishedFile]);
+          } catch (error) {
+            notificationWarning = `تعذر نشر إشعار الملف في الجرس: ${error.message}`;
+          }
+        }
         await loadData();
+        notify(notificationWarning || "تم تحديث حالة الملف.", Boolean(notificationWarning));
       } catch (error) { notify(error.message, true); }
     });
     const up = document.createElement("button");
@@ -331,6 +568,14 @@ async function moveFile(file, direction) {
   if (nextIndex < 0 || nextIndex >= ordered.length) return;
   [ordered[index], ordered[nextIndex]] = [ordered[nextIndex], ordered[index]];
   try {
+    if (localFeaturePreview) {
+      const moved = [...ordered];
+      for (const [position, item] of moved.entries()) item.position = position;
+      files = moved;
+      localStorage.setItem("course-library-feature-preview-files", JSON.stringify(files));
+      await loadData();
+      return;
+    }
     for (const [position, item] of ordered.entries()) {
       assertSuccess(await client.from("files").update({ position }).eq("id", item.id));
     }
@@ -364,7 +609,6 @@ async function uploadAsset(file, prefix, onProgress = () => {}) {
           bucketName: "library-files",
           objectName: path,
           contentType,
-          cacheControl: "3600",
         },
         onError: reject,
         onProgress: (uploadedBytes) => onProgress(uploadedBytes),
@@ -387,11 +631,35 @@ categoryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const values = new FormData(categoryForm);
   try {
+    if (localFeaturePreview) {
+      const nameAr = values.get("name_ar").trim();
+      if (categories.some((category) => category.name_ar === nameAr)) {
+        throw new Error("اسم التصنيف موجود بالفعل في المعاينة.");
+      }
+      const parentId = values.get("parent_id") || null;
+      categories.push({
+        id: crypto.randomUUID(),
+        name_ar: nameAr,
+        name_en: values.get("name_en").trim(),
+        parent_id: parentId,
+        is_active: true,
+        is_coming_soon: values.has("is_coming_soon"),
+        position: categories.filter((category) => category.parent_id === parentId).length,
+      });
+      localStorage.setItem("course-library-feature-preview", JSON.stringify(categories));
+      categoryForm.reset();
+      await loadData();
+      notify("تمت الإضافة في المعاينة المحلية فقط؛ لم يتغير الموقع أو قاعدة البيانات.");
+      return;
+    }
     assertSuccess(await client.from("categories").insert({
       name_ar: values.get("name_ar").trim(),
       name_en: values.get("name_en").trim(),
+      parent_id: values.get("parent_id") || null,
       is_coming_soon: values.has("is_coming_soon"),
-      position: categories.length,
+      position: categories.filter((category) =>
+        category.parent_id === (values.get("parent_id") || null),
+      ).length,
     }));
     categoryForm.reset();
     await loadData();
@@ -406,6 +674,13 @@ function editCategory(category) {
   if (nameEn === null) return;
   void (async () => {
     try {
+      if (localFeaturePreview) {
+        category.name_ar = nameAr.trim();
+        category.name_en = nameEn.trim();
+        localStorage.setItem("course-library-feature-preview", JSON.stringify(categories));
+        await loadData();
+        return;
+      }
       assertSuccess(await client.from("categories").update({
         name_ar: nameAr.trim(),
         name_en: nameEn.trim(),
@@ -431,6 +706,7 @@ function editFile(file) {
 
 function resetFileForm() {
   fileForm.reset();
+  uploadDrafts.clear();
   fileForm.elements.id.value = "";
   fileForm.elements.position.value = "0";
   fileForm.elements.is_published.checked = true;
@@ -463,6 +739,10 @@ fileForm.addEventListener("submit", async (event) => {
   try {
     const newFiles = [...uploadInput.files];
     const newCover = coverInput.files[0];
+    const isBatchUpload = newFiles.length > 0 && !existing;
+    const entries = isBatchUpload
+      ? newFiles.map((file) => ({ file, draft: uploadDrafts.get(file) }))
+      : [];
     if (!existing && newFiles.length === 0) {
       throw new Error("اختر ملفًا واحدًا على الأقل للرفع.");
     }
@@ -477,6 +757,41 @@ fileForm.addEventListener("submit", async (event) => {
     if (unsupportedFile) {
       throw new Error(`نوع الملف «${unsupportedFile.name}» غير مدعوم.`);
     }
+    if (localFeaturePreview && existing && newFiles.length === 0) {
+      files = files.map((file) => file.id === existing.id
+        ? {
+            ...file,
+            name: values.get("name").trim() || existing.name,
+            description: values.get("description").trim(),
+            category_id: values.get("category_id"),
+            categories: categories.find((category) => category.id === values.get("category_id")),
+            position: Number(values.get("position")) || 0,
+            is_published: values.has("is_published"),
+          }
+        : file);
+      localStorage.setItem("course-library-feature-preview-files", JSON.stringify(files));
+      resetFileForm();
+      await loadData();
+      notify("تم تعديل بيانات الملف في المعاينة المحلية فقط.");
+      return;
+    }
+    const invalidEntry = entries.find(({ draft }) =>
+      !draft?.name.trim() || !draft.categoryId ||
+      !categories.some((category) => category.id === draft.categoryId),
+    );
+    if (invalidEntry) {
+      throw new Error(`أكمل اسم وتصنيف «${invalidEntry.file.name}».`);
+    }
+    const oversizedBatchCover = entries.find(({ draft }) =>
+      draft.cover?.size > maxCoverSize,
+    );
+    if (oversizedBatchCover) {
+      throw new Error(`حجم غلاف «${oversizedBatchCover.file.name}» أكبر من 50 MB.`);
+    }
+    const invalidBatchCover = entries.find(({ draft }) =>
+      draft.cover && !getUploadMimeType(draft.cover).startsWith("image/"),
+    );
+    if (invalidBatchCover) throw new Error("اختر صورة صحيحة لكل غلاف.");
     if (newCover?.size > maxCoverSize) {
       throw new Error("حجم صورة الغلاف أكبر من الحد المسموح (50 MB).");
     }
@@ -488,7 +803,61 @@ fileForm.addEventListener("submit", async (event) => {
     let mimeType = existing?.mime_type;
     let sizeBytes = existing?.size_bytes;
     const uploadedFilePaths = [];
-    const uploads = [...newFiles, ...(newCover?.size ? [newCover] : [])];
+    const uploadedCoverPaths = [];
+    if (localFeaturePreview) {
+      const previewRecords = [];
+      for (const [index, file] of newFiles.entries()) {
+        const draft = isBatchUpload
+          ? entries[index].draft
+          : {
+              name: values.get("name").trim() || file.name.replace(/\.[^.]+$/, ""),
+              description: values.get("description").trim(),
+              categoryId: values.get("category_id"),
+              isPublished: values.has("is_published"),
+            };
+        previewRecords.push({
+          id: crypto.randomUUID(),
+          name: draft.name,
+          description: draft.description,
+          category_id: draft.categoryId,
+          categories: categories.find((category) => category.id === draft.categoryId),
+          object_path: file.name,
+          cover_path: isBatchUpload ? entries[index].draft.cover?.name || null : null,
+          mime_type: getUploadMimeType(file),
+          size_bytes: file.size,
+          position: (Number(values.get("position")) || 0) + index,
+          downloads: 0,
+          is_published: draft.isPublished,
+          created_at: new Date().toISOString(),
+        });
+      }
+      files = [...previewRecords, ...files];
+      const previewNotifications = previewRecords
+        .filter((file) => file.is_published)
+        .map((file) => ({
+          id: crypto.randomUUID(),
+          title: `ملف جديد: ${file.name}`,
+          body: file.description || `أُضيف إلى تصنيف ${file.categories?.name_ar || ""}.`,
+          type: "file",
+          file_id: file.id,
+          created_at: file.created_at,
+        }));
+      notifications = [...previewNotifications, ...notifications];
+      localStorage.setItem("course-library-feature-preview-files", JSON.stringify(files));
+      localStorage.setItem(
+        "course-library-feature-preview-notifications",
+        JSON.stringify(notifications),
+      );
+      resetFileForm();
+      await loadData();
+      notify(`تمت إضافة ${previewRecords.length} عنصر للمعاينة المحلية فقط؛ لم يُرفع أي ملف أو إشعار للأجهزة.`);
+      return;
+    }
+    const uploads = [
+      ...entries.flatMap(({ file, draft }) => [file, ...(draft.cover ? [draft.cover] : [])]),
+      ...(!isBatchUpload ? newFiles : []),
+      ...(newCover?.size ? [newCover] : []),
+    ];
     const uploadSize = uploads.reduce((total, file) => total + file.size, 0);
     let completedBytes = 0;
     uploadProgress.hidden = uploads.length === 0;
@@ -505,11 +874,26 @@ fileForm.addEventListener("submit", async (event) => {
           : 100;
         uploadStatus.textContent = `جارٍ رفع ${newFile.name} · ${percent}%`;
       });
-      uploadedFilePaths.push(path);
       uploadedPaths.push(path);
+      uploadedFilePaths.push(path);
       completedBytes += newFile.size;
       uploadProgress.value = completedBytes;
-      if (index === 0) {
+      if (isBatchUpload && entries[index].draft.cover) {
+        const batchCover = entries[index].draft.cover;
+        const batchCoverPath = await uploadAsset(batchCover, "covers", (uploadedBytes) => {
+          uploadProgress.value = completedBytes + uploadedBytes;
+          uploadStatus.textContent = `جارٍ رفع غلاف ${newFile.name} · ${Math.floor(
+            (uploadedBytes / batchCover.size) * 100,
+          )}%`;
+        });
+        uploadedPaths.push(batchCoverPath);
+        uploadedCoverPaths.push(batchCoverPath);
+        completedBytes += batchCover.size;
+        uploadProgress.value = completedBytes;
+      } else if (isBatchUpload) {
+        uploadedCoverPaths.push(null);
+      }
+      if (index === 0 && existing) {
         objectPath = path;
         mimeType = getUploadMimeType(newFile);
         sizeBytes = newFile.size;
@@ -541,19 +925,41 @@ fileForm.addEventListener("submit", async (event) => {
           mime_type: mimeType,
           size_bytes: sizeBytes,
         }).eq("id", existing.id)
+        .select("id, name, description, category_id, is_published")
+        .single()
       : await client.from("files").insert(newFiles.map((file, index) => ({
-          ...baseRecord,
-          name: newFiles.length === 1 && values.get("name").trim()
-            ? values.get("name").trim()
-            : file.name.replace(/\.[^.]+$/, ""),
+          ...(isBatchUpload ? {
+            description: entries[index].draft.description,
+            category_id: entries[index].draft.categoryId,
+            is_published: entries[index].draft.isPublished,
+          } : baseRecord),
+          name: isBatchUpload
+            ? entries[index].draft.name.trim()
+            : newFiles.length === 1 && values.get("name").trim()
+              ? values.get("name").trim()
+              : file.name.replace(/\.[^.]+$/, ""),
           object_path: uploadedFilePaths[index],
-          cover_path: newFiles.length === 1 ? coverPath || null : null,
+          cover_path: isBatchUpload
+            ? uploadedCoverPaths[index]
+            : newFiles.length === 1 ? coverPath || null : null,
           mime_type: getUploadMimeType(file),
           size_bytes: file.size,
           position: baseRecord.position + index,
-        })));
-    assertSuccess(result);
+        })))
+        .select("id, name, description, category_id, is_published");
+    const savedRows = assertSuccess(result);
     saved = true;
+    const newlyPublishedFiles = existing
+      ? (!existing.is_published && savedRows.is_published ? [savedRows] : [])
+      : savedRows.filter((file) => file.is_published);
+    let notificationWarning = "";
+    if (newlyPublishedFiles.length) {
+      try {
+        notificationWarning = await publishFileNotifications(newlyPublishedFiles);
+      } catch (error) {
+        notificationWarning = `تعذر نشر إشعار الملف في الجرس: ${error.message}`;
+      }
+    }
     const obsoletePaths = existing
       ? [
           existing.object_path !== objectPath ? existing.object_path : null,
@@ -571,7 +977,10 @@ fileForm.addEventListener("submit", async (event) => {
       : newFiles.length === 1
         ? "تمت إضافة الملف."
         : `تمت إضافة ${newFiles.length} ملفات.`;
-    notify(cleanupWarning || successMessage, Boolean(cleanupWarning));
+    const finalMessage = [successMessage, notificationWarning]
+      .filter(Boolean)
+      .join(" ");
+    notify(cleanupWarning || finalMessage, Boolean(cleanupWarning || notificationWarning));
   } catch (error) {
     if (!saved && uploadedPaths.length) {
       const { error: cleanupError } = await client.storage.from("library-files").remove(uploadedPaths);
@@ -591,9 +1000,60 @@ fileForm.addEventListener("submit", async (event) => {
   }
 });
 
+notificationForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submit = notificationForm.querySelector('[type="submit"]');
+  const values = new FormData(notificationForm);
+  const title = values.get("title").trim();
+  const body = values.get("body").trim();
+  if (!title || !body) {
+    notify("أدخل عنوان الإشعار ونصه.", true);
+    return;
+  }
+  submit.disabled = true;
+  try {
+    if (localFeaturePreview) {
+      notifications = [{
+        id: crypto.randomUUID(),
+        title,
+        body,
+        type: "announcement",
+        file_id: null,
+        created_at: new Date().toISOString(),
+      }, ...notifications];
+      localStorage.setItem(
+        "course-library-feature-preview-notifications",
+        JSON.stringify(notifications),
+      );
+      notificationForm.reset();
+      renderAdminNotifications();
+      notify("تم حفظ الإعلان في المعاينة المحلية فقط؛ لم يُرسل أي تنبيه للأجهزة.");
+      return;
+    }
+    const notification = assertSuccess(await client.from("notifications")
+      .insert({ title, body, type: "announcement" })
+      .select("id, title, body, type, file_id, created_at")
+      .single());
+    const pushWarning = await sendPushAlerts([notification]);
+    notificationForm.reset();
+    await loadData();
+    notify(pushWarning || "تم نشر الإعلان في جرس الإشعارات للزوار.", Boolean(pushWarning));
+  } catch (error) {
+    notify(error.message, true);
+  } finally {
+    submit.disabled = false;
+  }
+});
+
 async function deleteFile(file) {
   if (!window.confirm(`حذف «${file.name}» نهائيًا؟`)) return;
   try {
+    if (localFeaturePreview) {
+      files = files.filter((item) => item.id !== file.id);
+      localStorage.setItem("course-library-feature-preview-files", JSON.stringify(files));
+      await loadData();
+      return;
+    }
     assertSuccess(await client.from("files").delete().eq("id", file.id));
     const paths = [file.object_path, file.cover_path].filter(Boolean);
     const { error } = await client.storage.from("library-files").remove(paths);
@@ -631,7 +1091,7 @@ migrationButton.addEventListener("click", async () => {
       if (existing) {
         assertSuccess(await client.from("files").update({
           category_id: categoryIds.get(legacy.category),
-          mime_type: getUploadMimeType(file),
+          mime_type: file.type || "application/pdf",
           size_bytes: file.size,
         }).eq("id", existing.id));
       } else {
@@ -640,7 +1100,7 @@ migrationButton.addEventListener("click", async () => {
           description: "",
           category_id: categoryIds.get(legacy.category),
           object_path: path,
-          mime_type: getUploadMimeType(file),
+          mime_type: file.type || "application/pdf",
           size_bytes: file.size,
           is_published: true,
           position: index,
@@ -655,7 +1115,17 @@ migrationButton.addEventListener("click", async () => {
 });
 
 document.querySelector("#logout-button").disabled = true;
-if (!client) {
+if (localFeaturePreview) {
+  document.querySelector("#admin-email").textContent = "معاينة محلية آمنة";
+  document.querySelector("#dashboard-message").textContent =
+    "معاينة محلية معزولة: التصنيفات والبيانات التجريبية محفوظة في هذا المتصفح فقط. لن يتصل هذا الوضع بقاعدة بيانات الموقع أو يرفع ملفات.";
+  document.querySelector("#dashboard-message").hidden = false;
+  document.querySelectorAll(".dashboard > .panel").forEach((panel, index) => {
+    panel.hidden = ![1, 2, 3, 4].includes(index);
+  });
+  document.querySelector("#logout-button").hidden = true;
+  await loadData();
+} else if (!client) {
   message.textContent = "أكمل إعداد رابط Supabase ومفتاح anon في ملف config.js.";
   message.hidden = false;
   document.querySelectorAll("button, input, select, textarea").forEach((control) => {
@@ -671,7 +1141,7 @@ if (!client) {
       message.textContent = error.message;
       message.hidden = false;
     }
-
-    updateFileSelection();
   }
+
+  updateFileSelection();
 }

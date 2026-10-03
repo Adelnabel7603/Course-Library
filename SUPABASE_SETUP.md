@@ -16,7 +16,33 @@ The existing public library remains available from its bundled files until the S
 6. Publish updates to the GitHub Pages source branch (`main`). The existing Pages deployment publishes each push automatically; its URL (`https://adelnabel7603.github.io/Course-Library/`) stays unchanged as long as the repository name remains `Course-Library`. Open `<your-site-url>/admin/login.html` and sign in. The dashboard checks the administrator allowlist and database policies protect every write operation.
 7. On the dashboard, select the existing `legacy-pdfs` folder and click **رفع الملفات الحالية** to copy all 14 existing PDFs into persistent storage and add their current categories and metadata to the database.
 
-The public library loads active categories and published files from Supabase and listens for category/file changes. The storage bucket is private; visitors receive temporary signed links only for published file and cover records. Library files are limited to 1 GB per file and cover images to 50 MB. The dashboard supports multiple PDF, Office, text, image, and video files in one upload; files over 6 MB use resumable uploads, images are previewed, and videos play in the public library. To apply the file-size limit and MIME types on an existing project, run the updated `database/schema.sql` in the Supabase SQL Editor. The Supabase project's plan may impose a lower maximum upload size.
+The public library loads active categories, published files, and notifications from Supabase and listens for changes. New categories can optionally be placed inside an existing category; existing categories remain top-level unless explicitly changed in the database. Selecting a parent category in the public library includes its descendants. Run `database/schema.sql` in the Supabase SQL Editor to add the nullable parent relationship and notifications tables; this does not change existing category or file records. The storage bucket is private; visitors receive temporary signed links only for published file and cover records. Library files are limited to 1 GB per file and cover images to 50 MB. The dashboard supports multiple PDF, Office, text, image, and video files in one upload with per-file names, descriptions, categories, visibility, and optional covers. Files over 6 MB use resumable uploads, images are previewed, and videos play in the public library. The Supabase project's plan may impose a lower maximum upload size.
+
+### Notifications
+
+The bell keeps up to 50 recent announcements and new-file notices in the library. New files published from the dashboard create a notice automatically; announcements are written in the dashboard's **إعلان أو تعليمات للزوار** form. Visitors can revisit the notices from the bell. Device notifications are optional and require the visitor's permission; they can arrive while the installed app or browser is closed.
+
+To configure device notifications:
+
+1. Generate a VAPID key pair on a trusted computer with `npx web-push generate-vapid-keys`. Keep the private key secret; never put it in `config.js` or commit it.
+2. Set the public key as `vapidPublicKey` in `config.js`.
+3. Install and authenticate the Supabase CLI, then set server-only secrets (replace the example origin/URL with the deployed site's exact origin and base URL):
+
+   ```sh
+   supabase secrets set APP_ORIGIN=https://adelnabel7603.github.io SITE_URL=https://adelnabel7603.github.io/Course-Library/ VAPID_SUBJECT=mailto:admin@example.com VAPID_PUBLIC_KEY=YOUR_PUBLIC_KEY VAPID_PRIVATE_KEY=YOUR_PRIVATE_KEY
+   ```
+
+   Supabase provides `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to deployed Edge Functions. Do not copy the service-role key into browser code.
+4. Deploy both Edge Functions from the project root:
+
+   ```sh
+   supabase functions deploy register-push
+   supabase functions deploy send-push-notification
+   ```
+
+5. Publish the website update, then visitors open the bell and choose **تفعيل إشعارات الجهاز**. They must allow notifications on each browser/device. iOS requires a supported iOS version and the site added to the Home Screen. People who do not opt in still see new notices in the bell the next time they visit.
+
+To safely preview the administration features without contacting Supabase, open `admin/dashboard.html?preview=features` locally. Preview categories, file records, and announcements are stored in this browser's local storage only. Selected files are not uploaded and no device push is sent in preview mode; preview changes never affect the live site.
 
 The public site can be installed from a supported browser such as Chrome and caches its interface for offline access. New deployments are activated automatically when a visitor refreshes the page; the library data and private cloud files still require an internet connection.
 

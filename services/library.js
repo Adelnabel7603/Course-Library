@@ -1,20 +1,33 @@
-import { requireSupabase } from "./supabase.js";
+async function getClient() {
+  const { requireSupabase } = await import("./supabase.js");
+  return requireSupabase();
+}
 
 export async function getPublicLibrary() {
-  const client = requireSupabase();
-  const [{ data: categories, error: categoriesError }, { data: files, error: filesError }] =
-    await Promise.all([
-      client.from("categories").select("*").eq("is_active", true).order("position"),
+  const client = await getClient();
+  const [
+    { data: categories, error: categoriesError },
+    { data: files, error: filesError },
+    { data: notifications, error: notificationsError },
+  ] = await Promise.all([
+      client.from("categories").select("id, name_ar, name_en, parent_id, is_active, is_coming_soon, position").eq("is_active", true).order("position"),
       client
         .from("files")
-        .select("*, categories(id, name_ar, name_en, is_coming_soon)")
+        .select("*, categories(id, name_ar, name_en, parent_id, is_coming_soon)")
         .eq("is_published", true)
         .order("position")
         .order("created_at", { ascending: false }),
+      client
+        .from("notifications")
+        .select("id, title, body, type, file_id, created_at")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
   if (categoriesError) throw categoriesError;
   if (filesError) throw filesError;
+  if (notificationsError) throw notificationsError;
 
   const visibleCategories = categories.filter((category) => !category.is_coming_soon);
   const categoryIds = new Set(visibleCategories.map((category) => category.id));
@@ -35,6 +48,7 @@ export async function getPublicLibrary() {
   }
   return {
     categories,
+    notifications,
     files: visibleFiles.map((file) => ({
       ...file,
       category: file.categories.name_ar,
@@ -53,17 +67,28 @@ function createDownloadUrl(signedUrl, fileName) {
   return url.href;
 }
 
-export function subscribeToLibrary(onChange) {
-  const client = requireSupabase();
+export async function subscribeToLibrary(onChange) {
+  const client = await getClient();
   return client
     .channel("public-library")
     .on("postgres_changes", { event: "*", schema: "public", table: "files" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "categories" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, onChange)
     .subscribe();
 }
 
+export async function registerPushSubscription(subscription) {
+  const client = await getClient();
+  const { data, error } = await client.functions.invoke("register-push", {
+    body: { subscription },
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function recordDownload(fileId) {
-  const { error } = await requireSupabase().rpc("increment_file_downloads", {
+  const client = await getClient();
+  const { error } = await client.rpc("increment_file_downloads", {
     file_id: fileId,
   });
   if (error) throw error;
