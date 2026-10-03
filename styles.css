@@ -42,7 +42,7 @@ button {
 
 .hero {
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   color: #f5f7f1;
   background-color: var(--green);
   background-image: repeating-linear-gradient(
@@ -84,170 +84,10 @@ button {
   font-size: 1.15rem;
 }
 
-.mobile-toolbar {
-  display: none;
-}
-
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.notification-menu {
-  position: relative;
-}
-
-.notification-button {
-  position: relative;
-}
-
-.notification-badge {
-  position: absolute;
-  top: -5px;
-  inset-inline-end: -5px;
-  display: grid;
-  min-width: 19px;
-  height: 19px;
-  place-items: center;
-  padding-inline: 4px;
-  border: 2px solid var(--green);
-  border-radius: 999px;
-  color: #fff;
-  background: #c64235;
-  font-size: .68rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.notification-panel {
-  position: fixed;
-  z-index: 20;
-  top: 76px;
-  inset-inline-end: max(16px, calc((100vw - 1120px) / 2));
-  width: min(390px, calc(100vw - 24px));
-  max-height: min(70vh, 560px);
-  overflow: auto;
-  padding: 17px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  color: var(--ink);
-  background: var(--surface);
-  box-shadow: 0 18px 48px rgb(10 30 24 / 24%);
-}
-
-.notification-panel-heading {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.notification-panel-heading h2 {
-  margin: 0;
-  font-size: 1.05rem;
-}
-
-.notification-count,
-.notification-empty {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: .82rem;
-}
-
-.notification-read-button,
-.notification-enable {
-  border: 0;
-  color: var(--green-strong);
-  background: transparent;
-  font-size: .78rem;
-  font-weight: 700;
-}
-
-.notification-enable {
-  width: 100%;
-  min-height: 38px;
-  margin-bottom: 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--green-soft);
-}
-
-.notification-list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.notification-item {
-  width: 100%;
-  padding: 11px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  color: inherit;
-  text-align: start;
-  background: var(--surface);
-}
-
-.notification-item:hover,
-.notification-item.is-unread {
-  border-color: #bbd2c3;
-  background: var(--green-soft);
-}
-
-.notification-item-title {
-  display: block;
-  font-weight: 700;
-}
-
-.notification-item-body {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: .85rem;
-  white-space: pre-wrap;
-}
-
-.notification-item time {
-  display: block;
-  margin-top: 7px;
-  color: var(--muted);
-  font-size: .75rem;
-}
-
-.app-update-prompt {
-  position: fixed;
-  z-index: 40;
-  inset-inline: 16px;
-  bottom: max(16px, env(safe-area-inset-bottom));
-  display: flex;
-  width: fit-content;
-  max-width: min(560px, calc(100vw - 32px));
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-inline: auto;
-  padding: 12px 15px;
-  border: 1px solid #a8c4b2;
-  border-radius: 14px;
-  color: var(--ink);
-  background: var(--surface);
-  box-shadow: 0 12px 36px rgb(10 30 24 / 22%);
-  font-size: .88rem;
-}
-
-.app-update-prompt button {
-  flex: 0 0 auto;
-  min-height: 36px;
-  padding: 6px 13px;
-  border: 0;
-  border-radius: 9px;
-  color: #fff;
-  background: var(--green);
-  font-weight: 700;
 }
 
 .toolbar > a {
@@ -273,6 +113,46 @@ button {
   background: rgb(255 255 255 / 8%);
 }
 
+.install-button {
+  position: relative;
+}
+
+.install-button:disabled {
+  cursor: progress;
+}
+
+.install-progress {
+  position: absolute;
+  inset-inline: 5px;
+  bottom: 2px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 24%);
+}
+
+.install-progress > span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: #d5b967;
+  animation: install-progress-slide 1s ease-in-out infinite alternate;
+}
+
+@keyframes install-progress-slide {
+  from {
+    transform: translateX(-160%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+
+[hidden] {
+  display: none !important;
+}
+
 .toolbar-icon {
   width: 18px;
   height: 18px;
@@ -289,8 +169,8 @@ button {
   height: 17px;
 }
 
-[hidden] {
-  display: none !important;
+.mobile-toolbar {
+  display: none;
 }
 
 .hero-content {
@@ -364,20 +244,6 @@ h1 {
 
 .category-filter-rail {
   min-width: 0;
-}
-
-@media (max-width: 760px) {
-  .category-filter-rail {
-    direction: ltr;
-  }
-
-  .category-list {
-    direction: rtl;
-  }
-
-  html[dir="ltr"] .category-list {
-    direction: ltr;
-  }
 }
 
 .category-button {
@@ -837,17 +703,6 @@ body.dark .category-button[aria-pressed="true"] {
   background: var(--green-strong);
 }
 
-body.dark .notification-item:hover,
-body.dark .notification-item.is-unread,
-body.dark .notification-enable {
-  border-color: #466659;
-  background: #243d34;
-}
-
-body.dark .notification-read-button {
-  color: #bcd8c8;
-}
-
 body.dark .pdf-icon {
   color: #ffaaa0;
   background: #452f2d;
@@ -931,17 +786,6 @@ body.dark .category-scroll-button:not(:disabled):hover {
     display: none;
   }
 
-  .notification-panel {
-    top: 68px;
-    inset-inline-end: 12px;
-  }
-
-  .app-update-prompt {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
-  }
-
   .outline-button {
     width: 36px;
     min-width: 36px;
@@ -959,6 +803,12 @@ body.dark .category-scroll-button:not(:disabled):hover {
   .toolbar-icon {
     width: 19px;
     height: 19px;
+  }
+
+  .install-progress {
+    inset-inline: 4px;
+    bottom: 1px;
+    height: 2px;
   }
 
   .hero-content {
@@ -988,6 +838,14 @@ body.dark .category-scroll-button:not(:disabled):hover {
     box-shadow: 0 5px 16px rgb(24 50 42 / 5%);
   }
 
+  .category-filter-rail {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 5px;
+    direction: ltr;
+  }
+
   .category-list {
     flex-wrap: nowrap;
     gap: 8px;
@@ -1000,17 +858,15 @@ body.dark .category-scroll-button:not(:disabled):hover {
     scrollbar-width: none;
     scroll-snap-type: inline proximity;
     -webkit-overflow-scrolling: touch;
+    direction: rtl;
+  }
+
+  html[dir="ltr"] .category-list {
+    direction: ltr;
   }
 
   .category-list::-webkit-scrollbar {
     display: none;
-  }
-
-  .category-filter-rail {
-    display: flex;
-    min-width: 0;
-    align-items: center;
-    gap: 5px;
   }
 
   .category-scroll-button {
@@ -1264,5 +1120,11 @@ body.dark .category-scroll-button:not(:disabled):hover {
   .toolbar-icon {
     width: 17px;
     height: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .install-progress > span {
+    animation-duration: 2.5s;
   }
 }

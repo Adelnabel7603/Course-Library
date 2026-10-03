@@ -1,33 +1,24 @@
 import { legacyFiles, legacyCategories } from "./services/legacy-catalog.js";
+import { isSupabaseConfigured } from "./services/supabase.js";
 import {
   getPublicLibrary,
-  registerPushSubscription,
   recordDownload,
   subscribeToLibrary,
 } from "./services/library.js";
-import { isSupabaseConfigured, supabaseConfig } from "./config.js";
 
 const files = legacyFiles;
 
 const translations = {
   ar: {
     brand: "مكتبة المقررات",
-    updateAvailable: "تم تحديث التطبيق. حدّث الصفحة لتشغيل النسخة الجديدة.",
-    refreshApp: "تحديث الآن",
-    notifications: "الإشعارات",
-    markRead: "تحديد كمقروءة",
-    enableNotifications: "تفعيل إشعارات الجهاز",
-    noNotifications: "لا توجد إشعارات جديدة.",
-    unreadCount: (count) => `${count} غير مقروء`,
-    pushEnabled: "إشعارات الجهاز مفعّلة",
-    pushEnableSuccess: "تم تفعيل إشعارات الجهاز.",
-    pushPermissionDenied: "لم تسمح بإشعارات الجهاز.",
-    pushUnavailable: "تعذر تفعيل إشعارات الجهاز على هذا المتصفح.",
-    pushSetupMissing: "إشعارات الجهاز غير مهيأة بعد؛ ستظهر التحديثات في الجرس.",
     admin: "الإدارة",
     install: "تثبيت التطبيق",
+    installing: "جارٍ التثبيت...",
+    installAccepted: "وافق المتصفح على التثبيت، جارٍ إكماله...",
+    installCancelled: "تم إلغاء التثبيت.",
     installSuccess: "تم تثبيت التطبيق.",
     installUnavailable: "افتح قائمة المتصفح واختر «إضافة إلى الشاشة الرئيسية» لتثبيت التطبيق.",
+    installIOS: "اضغط «مشاركة» في Safari، ثم اختر «إضافة إلى الشاشة الرئيسية».",
     share: "مشاركة",
     darkMode: "الوضع الليلي",
     lightMode: "الوضع النهاري",
@@ -35,7 +26,7 @@ const translations = {
     eyebrow: "ملفات المحاضرات والمراجعة",
     headline: "كل مادتك، في مكان واحد.",
     description: "تصفّح الملفات وافتحها أو نزّلها بسهولة.",
-    pdfFiles: "ملف",
+    pdfFiles: "ملف PDF",
     navHome: "الرئيسية",
     navSearch: "بحث",
     navFiles: "الملفات",
@@ -44,7 +35,6 @@ const translations = {
     changeLanguage: "تغيير اللغة",
     scrollCategoriesLeft: "تمرير التصنيفات إلى اليسار",
     scrollCategoriesRight: "تمرير التصنيفات إلى اليمين",
-    installIOS: "اضغط «مشاركة» في Safari، ثم اختر «إضافة إلى الشاشة الرئيسية».",
     all: "الكل",
     searchPlaceholder: "ابحث باسم الملف...",
     filesHeading: "الملفات",
@@ -73,22 +63,14 @@ const translations = {
   },
   en: {
     brand: "Course Library",
-    updateAvailable: "The app was updated. Refresh to load the new version.",
-    refreshApp: "Refresh now",
-    notifications: "Notifications",
-    markRead: "Mark all as read",
-    enableNotifications: "Enable device notifications",
-    noNotifications: "No new notifications.",
-    unreadCount: (count) => `${count} unread`,
-    pushEnabled: "Device notifications are enabled",
-    pushEnableSuccess: "Device notifications enabled.",
-    pushPermissionDenied: "Device notifications were not allowed.",
-    pushUnavailable: "Device notifications are unavailable in this browser.",
-    pushSetupMissing: "Device notifications are not configured yet; updates will appear in the bell.",
     admin: "Admin",
     install: "Install app",
+    installing: "Installing...",
+    installAccepted: "Installation accepted. Finishing up...",
+    installCancelled: "Installation cancelled.",
     installSuccess: "The app has been installed.",
     installUnavailable: "Open your browser menu and choose “Install app” or “Add to Home Screen”.",
+    installIOS: "In Safari, tap Share, then choose “Add to Home Screen”.",
     share: "Share",
     darkMode: "Dark mode",
     lightMode: "Light mode",
@@ -96,7 +78,7 @@ const translations = {
     eyebrow: "Lecture notes and revision files",
     headline: "All your courses, in one place.",
     description: "Browse, open, and download your files with ease.",
-    pdfFiles: "files",
+    pdfFiles: "PDF files",
     navHome: "Home",
     navSearch: "Search",
     navFiles: "Files",
@@ -105,7 +87,6 @@ const translations = {
     changeLanguage: "Change language",
     scrollCategoriesLeft: "Scroll categories left",
     scrollCategoriesRight: "Scroll categories right",
-    installIOS: "In Safari, tap Share, then choose “Add to Home Screen”.",
     all: "All",
     searchPlaceholder: "Search files...",
     filesHeading: "Files",
@@ -146,19 +127,10 @@ const emptyState = document.querySelector("#empty-state");
 const themeButton = document.querySelector("#theme-button");
 const themeIcon = document.querySelector("#theme-icon");
 const languageButton = document.querySelector("#language-button");
-const notificationButton = document.querySelector("#notification-button");
-const notificationPanel = document.querySelector("#notification-panel");
-const notificationBadge = document.querySelector("#notification-badge");
-const notificationCount = document.querySelector("#notification-count");
-const notificationList = document.querySelector("#notification-list");
-const notificationEmpty = document.querySelector("#notification-empty");
-const markNotificationsRead = document.querySelector("#mark-notifications-read");
-const enablePushButton = document.querySelector("#enable-push-button");
 const shareButton = document.querySelector("#share-button");
 const installButton = document.querySelector("#install-button");
+const installProgress = document.querySelector("#install-progress");
 const toast = document.querySelector("#toast");
-const appUpdatePrompt = document.querySelector("#app-update-prompt");
-const refreshAppButton = document.querySelector("#refresh-app-button");
 const downloadProgress = document.querySelector("#download-progress");
 const downloadProgressTitle = document.querySelector("#download-progress-title");
 const downloadProgressDetail = document.querySelector("#download-progress-detail");
@@ -171,12 +143,8 @@ let activeCategory = "all";
 let language = "ar";
 let toastTimeout;
 let installPrompt;
+let installCompletionTimeout;
 let activeDownload;
-let notifications = [];
-const localFeaturePreview = window.location.protocol === "file:" &&
-  new URLSearchParams(window.location.search).get("preview") === "features";
-const notificationReadKey = "course-library-read-notifications-v1";
-const readNotificationIds = new Set(loadReadNotificationIds());
 
 let categories = legacyCategories.map((category) => ({
   ...category,
@@ -185,23 +153,6 @@ let categories = legacyCategories.map((category) => ({
 }));
 let availableFiles = files;
 let cloudLibraryEnabled = false;
-
-function loadReadNotificationIds() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(notificationReadKey) || "[]");
-    return Array.isArray(stored) ? stored.filter((id) => typeof id === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveReadNotificationIds() {
-  try {
-    localStorage.setItem(notificationReadKey, JSON.stringify([...readNotificationIds]));
-  } catch {
-    return;
-  }
-}
 
 function currentText() {
   return translations[language];
@@ -226,6 +177,10 @@ function setLanguage(nextLanguage) {
   document.querySelectorAll("[data-aria-label]").forEach((element) => {
     element.setAttribute("aria-label", currentText()[element.dataset.ariaLabel]);
   });
+  installButton.setAttribute(
+    "aria-label",
+    installButton.disabled ? currentText().installing : currentText().install,
+  );
 
   searchInput.placeholder = currentText().searchPlaceholder;
   searchInput.setAttribute(
@@ -234,108 +189,6 @@ function setLanguage(nextLanguage) {
   );
   renderCategories();
   renderFiles();
-  renderNotifications();
-}
-
-function renderNotifications() {
-  const unread = notifications.filter((notification) =>
-    !readNotificationIds.has(notification.id));
-  notificationBadge.hidden = unread.length === 0;
-  notificationBadge.textContent = unread.length > 99 ? "99+" : String(unread.length);
-  notificationBadge.setAttribute("aria-label", currentText().unreadCount(unread.length));
-  notificationCount.textContent = currentText().unreadCount(unread.length);
-  markNotificationsRead.disabled = unread.length === 0;
-  notificationEmpty.hidden = notifications.length > 0;
-  notificationList.replaceChildren(...notifications.map((notification) => {
-    const item = document.createElement("li");
-    const button = document.createElement("button");
-    button.className = `notification-item${readNotificationIds.has(notification.id) ? "" : " is-unread"}`;
-    button.type = "button";
-    button.dataset.notificationId = notification.id;
-    const title = document.createElement("span");
-    title.className = "notification-item-title";
-    title.textContent = notification.title;
-    button.append(title);
-    if (notification.body) {
-      const body = document.createElement("span");
-      body.className = "notification-item-body";
-      body.textContent = notification.body;
-      button.append(body);
-    }
-    const time = document.createElement("time");
-    time.dateTime = notification.created_at;
-    time.textContent = new Intl.DateTimeFormat(language, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(notification.created_at));
-    button.append(time);
-    button.addEventListener("click", () => openNotification(notification));
-    item.append(button);
-    return item;
-  }));
-  updatePushButton();
-}
-
-async function updatePushButton() {
-  const pushSupported = "Notification" in window &&
-    "serviceWorker" in navigator &&
-    "PushManager" in window &&
-    Boolean(supabaseConfig.vapidPublicKey);
-  enablePushButton.hidden = !pushSupported;
-  enablePushButton.disabled = false;
-  if (!pushSupported) return;
-  if (Notification.permission === "denied") {
-    enablePushButton.hidden = true;
-    return;
-  }
-  if (Notification.permission === "granted") {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        enablePushButton.textContent = currentText().pushEnabled;
-        enablePushButton.disabled = true;
-        return;
-      }
-    } catch (error) {
-      showToast(error.message || currentText().pushUnavailable);
-    }
-  }
-  enablePushButton.textContent = currentText().enableNotifications;
-}
-
-function markNotificationRead(notificationId) {
-  readNotificationIds.add(notificationId);
-  saveReadNotificationIds();
-  renderNotifications();
-}
-
-function openNotification(notification) {
-  markNotificationRead(notification.id);
-  const file = availableFiles.find((item) => item.id === notification.file_id);
-  if (!file) return;
-  activeCategory = file.category_id;
-  searchInput.value = "";
-  renderCategories();
-  renderFiles();
-  document.querySelector("#library").scrollIntoView({ behavior: "smooth" });
-  window.setTimeout(() => {
-    document.querySelector(`[data-file-id="${CSS.escape(file.id)}"]`)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, 100);
-}
-
-function toggleNotificationPanel(forceOpen) {
-  const shouldOpen = forceOpen ?? notificationPanel.hidden;
-  notificationPanel.hidden = !shouldOpen;
-  notificationButton.setAttribute("aria-expanded", String(shouldOpen));
-  if (shouldOpen) updatePushButton();
-}
-
-function decodeVapidPublicKey(key) {
-  const padding = "=".repeat((4 - (key.length % 4)) % 4);
-  const base64 = (key + padding).replace(/-/g, "+").replace(/_/g, "/");
-  return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
 }
 
 function renderCategories() {
@@ -344,7 +197,9 @@ function renderCategories() {
     { key: "all", label: text.all, available: true },
     ...categories.map((category) => ({
       key: category.id || category.key,
-      label: getCategoryLabel(category),
+      label: language === "en" && category.name_en
+        ? category.name_en
+        : text.categories[category.key] || category.name_ar || category.key,
       available: category.available,
     })),
   ];
@@ -377,49 +232,19 @@ function renderCategories() {
   updateCategoryScrollControls();
 }
 
-function getCategoryLabel(category) {
-  const names = [];
-  let current = category;
-  while (current) {
-    names.unshift(
-      language === "en" && current.name_en
-        ? current.name_en
-        : textCategoryName(current),
-    );
-    current = categories.find((item) => item.id === current.parent_id);
-  }
-  return names.join(" / ");
-}
-
-function textCategoryName(category) {
-  return currentText().categories[category.key] || category.name_ar || category.key;
-}
-
 function updateCategoryScrollControls() {
   const rail = categoryList.getBoundingClientRect();
   const items = [...categoryList.children];
-  const visibleItems = items.filter((item) => {
-    const rect = item.getBoundingClientRect();
-    return rect.right > rail.left + 1 && rect.left < rail.right - 1;
-  });
-  const leftmost = visibleItems.reduce((left, item) =>
-    !left || item.getBoundingClientRect().left < left.getBoundingClientRect().left
-      ? item
-      : left, null);
-  const rightmost = visibleItems.reduce((right, item) =>
-    !right || item.getBoundingClientRect().right > right.getBoundingClientRect().right
-      ? item
-      : right, null);
-  const hasHiddenLeft = items.some((item) => item.getBoundingClientRect().right <= rail.left + 1);
-  const hasHiddenRight = items.some((item) => item.getBoundingClientRect().left >= rail.right - 1);
-
+  const hasHiddenLeft = items.some((item) =>
+    item.getBoundingClientRect().right <= rail.left + 1);
+  const hasHiddenRight = items.some((item) =>
+    item.getBoundingClientRect().left >= rail.right - 1);
   const hasOverflow = hasHiddenLeft || hasHiddenRight;
+
   categoryScrollLeft.hidden = !hasOverflow;
   categoryScrollRight.hidden = !hasOverflow;
   categoryScrollLeft.disabled = !hasHiddenLeft;
   categoryScrollRight.disabled = !hasHiddenRight;
-  categoryScrollLeft.classList.toggle("is-active", Boolean(leftmost && hasHiddenLeft));
-  categoryScrollRight.classList.toggle("is-active", Boolean(rightmost && hasHiddenRight));
 }
 
 function scrollCategoryRail(direction) {
@@ -455,26 +280,11 @@ function fileUrl(fileName) {
 function renderFiles() {
   const text = currentText();
   const query = searchInput.value.trim().toLocaleLowerCase();
-  const selectedCategoryIds = new Set();
-  if (activeCategory !== "all" && cloudLibraryEnabled) {
-    selectedCategoryIds.add(activeCategory);
-    let addedCategory;
-    do {
-      addedCategory = false;
-      for (const category of categories) {
-        if (category.parent_id && selectedCategoryIds.has(category.parent_id) &&
-            !selectedCategoryIds.has(category.id)) {
-          selectedCategoryIds.add(category.id);
-          addedCategory = true;
-        }
-      }
-    } while (addedCategory);
-  }
   const visibleFiles = availableFiles.filter((file) => {
     const matchesCategory =
       activeCategory === "all" ||
       (cloudLibraryEnabled
-        ? selectedCategoryIds.has(file.category_id)
+        ? file.category_id === activeCategory
         : file.category === activeCategory);
     const matchesSearch = `${file.name} ${file.description || ""}`
       .toLocaleLowerCase()
@@ -486,7 +296,6 @@ function renderFiles() {
     ...visibleFiles.map((file) => {
       const card = document.createElement("article");
       card.className = "file-card";
-      if (file.id) card.dataset.fileId = file.id;
 
       const top = document.createElement("div");
       top.className = "file-card-top";
@@ -512,10 +321,9 @@ function renderFiles() {
       const category = document.createElement("span");
       category.className = "file-category";
       category.textContent = cloudLibraryEnabled
-        ? getCategoryLabel(file.categories || {
-          name_ar: file.category,
-          name_en: file.categoryNameEn,
-        })
+        ? (language === "en" && file.categoryNameEn
+          ? file.categoryNameEn
+          : file.category)
         : text.categories[file.category] || file.category;
       details.append(title, category);
       top.append(icon, details);
@@ -596,7 +404,6 @@ async function loadCloudLibrary() {
     available: !category.is_coming_soon,
   }));
   availableFiles = library.files;
-  notifications = library.notifications;
   cloudLibraryEnabled = true;
   if (
     activeCategory !== "all" &&
@@ -606,7 +413,6 @@ async function loadCloudLibrary() {
   }
   renderCategories();
   renderFiles();
-  renderNotifications();
 }
 
 function setDarkMode(enabled) {
@@ -768,60 +574,13 @@ document.querySelectorAll(".mobile-toolbar [data-scroll]").forEach((button) => {
     }
   });
 });
-languageButton.addEventListener("click", () =>
-  setLanguage(language === "ar" ? "en" : "ar"),
-);
-notificationButton.addEventListener("click", () => toggleNotificationPanel());
-refreshAppButton.addEventListener("click", () => window.location.reload());
-markNotificationsRead.addEventListener("click", () => {
-  notifications.forEach(({ id }) => readNotificationIds.add(id));
-  saveReadNotificationIds();
-  renderNotifications();
-});
-enablePushButton.addEventListener("click", async () => {
-  if (!supabaseConfig.vapidPublicKey) {
-    showToast(currentText().pushSetupMissing);
-    return;
-  }
-  if (!("Notification" in window) || !("PushManager" in window)) {
-    showToast(currentText().pushUnavailable);
-    return;
-  }
-  enablePushButton.disabled = true;
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      showToast(currentText().pushPermissionDenied);
-      return;
-    }
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription() ||
-      await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: decodeVapidPublicKey(supabaseConfig.vapidPublicKey),
-      });
-    await registerPushSubscription(subscription.toJSON());
-    enablePushButton.textContent = currentText().pushEnabled;
-    showToast(currentText().pushEnableSuccess);
-  } catch (error) {
-    enablePushButton.disabled = false;
-    showToast(error.message || currentText().pushUnavailable);
-  }
-});
-document.addEventListener("click", (event) => {
-  const path = event.composedPath();
-  if (
-    !path.includes(notificationPanel) &&
-    !path.includes(notificationButton)
-  ) toggleNotificationPanel(false);
-});
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") toggleNotificationPanel(false);
-});
 categoryScrollLeft.addEventListener("click", () => scrollCategoryRail("left"));
 categoryScrollRight.addEventListener("click", () => scrollCategoryRail("right"));
 categoryList.addEventListener("scroll", updateCategoryScrollControls, { passive: true });
 window.addEventListener("resize", updateCategoryScrollControls);
+languageButton.addEventListener("click", () =>
+  setLanguage(language === "ar" ? "en" : "ar"),
+);
 themeButton.addEventListener("click", () =>
   setDarkMode(!document.body.classList.contains("dark")),
 );
@@ -846,6 +605,28 @@ function isStandaloneApp() {
 
 installButton.hidden = isStandaloneApp();
 
+function setInstallLoading(isLoading) {
+  installButton.classList.toggle("is-installing", isLoading);
+  installButton.disabled = isLoading;
+  installButton.setAttribute("aria-busy", String(isLoading));
+  installButton.setAttribute(
+    "aria-label",
+    isLoading ? currentText().installing : currentText().install,
+  );
+  installProgress.hidden = !isLoading;
+}
+
+function clearInstallCompletionTimeout() {
+  window.clearTimeout(installCompletionTimeout);
+  installCompletionTimeout = undefined;
+}
+
+function installInstructions() {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return isIOS ? currentText().installIOS : currentText().installUnavailable;
+}
+
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   installPrompt = event;
@@ -854,29 +635,53 @@ window.addEventListener("beforeinstallprompt", (event) => {
 
 installButton.addEventListener("click", async () => {
   if (!installPrompt) {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    showToast(isIOS ? currentText().installIOS : currentText().installUnavailable);
+    showToast(installInstructions());
     return;
   }
+
+  const promptEvent = installPrompt;
+  installPrompt = null;
+  setInstallLoading(true);
+
   try {
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === "accepted") showToast(currentText().installSuccess);
-    installPrompt = null;
-    installButton.hidden = true;
+    await promptEvent.prompt();
+    const { outcome } = await promptEvent.userChoice;
+    if (outcome === "accepted") {
+      showToast(currentText().installAccepted);
+      installCompletionTimeout = window.setTimeout(() => {
+        setInstallLoading(false);
+        if (isStandaloneApp()) {
+          installButton.hidden = true;
+          showToast(currentText().installSuccess);
+          return;
+        }
+        showToast(installInstructions());
+      }, 10000);
+      return;
+    }
+
+    setInstallLoading(false);
+    showToast(currentText().installCancelled);
   } catch (error) {
+    setInstallLoading(false);
     showToast(error.message || currentText().installUnavailable);
   }
 });
 
 window.addEventListener("appinstalled", () => {
+  clearInstallCompletionTimeout();
   installPrompt = null;
+  setInstallLoading(false);
   installButton.hidden = true;
+  showToast(currentText().installSuccess);
 });
 
 window.matchMedia("(display-mode: standalone)").addEventListener("change", (event) => {
   installButton.hidden = event.matches;
+  if (event.matches) {
+    clearInstallCompletionTimeout();
+    setInstallLoading(false);
+  }
 });
 
 downloadCancelButton.addEventListener("click", () => {
@@ -887,7 +692,7 @@ if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
   let hadController = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (hadController) {
-      appUpdatePrompt.hidden = false;
+      window.location.reload();
       return;
     }
     hadController = true;
@@ -922,39 +727,10 @@ try {
 }
 setLanguage("ar");
 
-if (localFeaturePreview) {
-  try {
-    const savedNotifications = localStorage.getItem(
-      "course-library-feature-preview-notifications",
-    );
-    notifications = savedNotifications
-      ? JSON.parse(savedNotifications)
-      : [{
-          id: "local-preview-notification",
-          title: "ملف جديد: تعليمات المراجعة النهائية",
-          body: "أضيفت تعليمات المراجعة. اضغط على هذا الإشعار للرجوع إليه.",
-          type: "announcement",
-          file_id: null,
-          created_at: new Date().toISOString(),
-        }];
-    renderNotifications();
-  } catch (error) {
-    showToast(error.message || "تعذر تحميل إشعارات المعاينة المحلية.");
-  }
-} else if (isSupabaseConfigured) {
+if (isSupabaseConfigured) {
   loadCloudLibrary()
-    .then(async () => {
-      const requestedNotificationId = new URLSearchParams(window.location.search)
-        .get("notification");
-      if (requestedNotificationId) {
-        toggleNotificationPanel(true);
-        window.setTimeout(() => {
-          document.querySelector(
-            `[data-notification-id="${CSS.escape(requestedNotificationId)}"]`,
-          )?.scrollIntoView({ block: "center" });
-        }, 0);
-      }
-      await subscribeToLibrary(() => {
+    .then(() => {
+      subscribeToLibrary(() => {
         loadCloudLibrary().catch((error) => {
           showToast(error.message || "تعذر تحديث المكتبة.");
         });
