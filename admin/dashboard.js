@@ -20,6 +20,7 @@ const fileTableBody = document.querySelector("#file-table-body");
 const fileCount = document.querySelector("#file-count");
 const uploadInput = document.querySelector("#file-input");
 const fileSelection = document.querySelector("#file-selection");
+const uploadEditors = document.querySelector("#upload-editors");
 const coverInput = fileForm.elements.cover;
 const coverFileName = document.querySelector("#cover-file-name");
 const uploadProgress = document.querySelector("#upload-progress");
@@ -33,6 +34,7 @@ let notifications = [];
 let toastTimeout;
 let tusClientPromise;
 let notificationPreviewUrl;
+const uploadDrafts = new Map();
 
 const maxFileSize = 1024 ** 3;
 const maxCoverSize = 50 * 1024 ** 2;
@@ -103,6 +105,22 @@ function formatFileSize(bytes) {
 
 function updateFileSelection() {
   const selected = [...uploadInput.files];
+  const isBatchUpload = selected.length > 1 && !fileForm.elements.id.value;
+  fileForm.elements.category_id.required = !isBatchUpload;
+  for (const file of selected) {
+    if (!uploadDrafts.has(file)) {
+      uploadDrafts.set(file, {
+        name: file.name.replace(/\.[^.]+$/, ""),
+        description: fileForm.elements.description.value.trim(),
+        categoryId: fileForm.elements.category_id.value,
+        isPublished: fileForm.elements.is_published.checked,
+        cover: null,
+      });
+    }
+  }
+  for (const file of uploadDrafts.keys()) {
+    if (!selected.includes(file)) uploadDrafts.delete(file);
+  }
   fileSelection.replaceChildren(...selected.map((file, index) => {
     const item = document.createElement("li");
     const detail = document.createElement("span");
@@ -137,6 +155,13 @@ function updateFileSelection() {
   if (selected.length === 1 && !fileForm.elements.name.value.trim()) {
     fileForm.elements.name.value = selected[0].name.replace(/\.[^.]+$/, "");
   }
+  document.querySelectorAll(".file-default-field").forEach((field) => {
+    field.hidden = isBatchUpload;
+  });
+  uploadEditors.hidden = !isBatchUpload;
+  uploadEditors.replaceChildren(...(isBatchUpload
+    ? selected.map((file, index) => createUploadEditor(file, index))
+    : []));
 }
 
 function assertSuccess({ data, error }) {
@@ -215,9 +240,20 @@ async function loadData() {
   files = assertSuccess(fileData);
   notifications = assertSuccess(notificationData);
   renderCategories();
+  renderParentCategoryOptions();
   renderCategoryOptions();
   renderFiles();
   renderAdminNotifications();
+}
+
+function categoryPath(category) {
+  const parts = [category.name_ar];
+  let parent = categories.find((item) => item.id === category.parent_id);
+  while (parent) {
+    parts.unshift(parent.name_ar);
+    parent = categories.find((item) => item.id === parent.parent_id);
+  }
+  return parts.join(" / ");
 }
 
 function renderCategories() {
@@ -230,7 +266,7 @@ function renderCategories() {
       info.className = "category-info";
       const name = document.createElement("strong");
       name.className = "category-name";
-      name.textContent = category.name_ar;
+      name.textContent = categoryPath(category);
       const status = document.createElement("span");
       status.className = `category-status${category.is_coming_soon ? " is-coming-soon" : ""}`;
       status.textContent = category.is_coming_soon ? "قريبًا" : category.is_active ? "نشط" : "مخفي";
@@ -310,11 +346,82 @@ function renderCategoryOptions(selectedId = "") {
   const options = categories.map((category) => {
     const option = document.createElement("option");
     option.value = category.id;
-    option.textContent = `${category.name_ar}${category.is_coming_soon ? " — قريبًا" : ""}`;
+    option.textContent = `${categoryPath(category)}${category.is_coming_soon ? " — قريبًا" : ""}`;
     option.selected = category.id === selectedId;
     return option;
   });
   fileForm.elements.category_id.replaceChildren(...options);
+}
+
+function renderParentCategoryOptions() {
+  const options = [new Option("بدون تصنيف أب (رئيسي)", "")];
+  for (const category of categories) {
+    options.push(new Option(categoryPath(category), category.id));
+  }
+  categoryForm.elements.parent_id.replaceChildren(...options);
+}
+
+function createUploadEditor(file, index) {
+  const draft = uploadDrafts.get(file);
+  const editor = document.createElement("fieldset");
+  editor.className = "upload-editor";
+  const legend = document.createElement("legend");
+  legend.textContent = `تفاصيل الملف ${index + 1}`;
+
+  const nameField = document.createElement("label");
+  nameField.textContent = "الاسم";
+  const nameInput = document.createElement("input");
+  nameInput.maxLength = 180;
+  nameInput.required = true;
+  nameInput.value = draft.name;
+  nameInput.addEventListener("input", () => { draft.name = nameInput.value; });
+  nameField.append(nameInput);
+
+  const categoryField = document.createElement("label");
+  categoryField.textContent = "التصنيف";
+  const categorySelect = document.createElement("select");
+  categorySelect.required = true;
+  categorySelect.replaceChildren(...categories.map((category) => {
+    const option = new Option(categoryPath(category), category.id);
+    option.selected = category.id === draft.categoryId;
+    return option;
+  }));
+  categorySelect.addEventListener("change", () => { draft.categoryId = categorySelect.value; });
+  categoryField.append(categorySelect);
+
+  const descriptionField = document.createElement("label");
+  descriptionField.className = "wide";
+  descriptionField.textContent = "الوصف";
+  const descriptionInput = document.createElement("textarea");
+  descriptionInput.rows = 2;
+  descriptionInput.value = draft.description;
+  descriptionInput.addEventListener("input", () => { draft.description = descriptionInput.value; });
+  descriptionField.append(descriptionInput);
+
+  const coverField = document.createElement("label");
+  coverField.className = "upload-editor-cover";
+  coverField.textContent = draft.cover?.name || "صورة غلاف لهذا الملف (اختياري)";
+  const coverInputForFile = document.createElement("input");
+  coverInputForFile.type = "file";
+  coverInputForFile.accept = "image/png,image/jpeg,image/webp,image/gif";
+  coverInputForFile.addEventListener("change", () => {
+    draft.cover = coverInputForFile.files[0] || null;
+    coverField.firstChild.textContent =
+      draft.cover?.name || "صورة غلاف لهذا الملف (اختياري)";
+  });
+  coverField.append(coverInputForFile);
+
+  const publishedField = document.createElement("label");
+  publishedField.className = "check-label";
+  const publishedInput = document.createElement("input");
+  publishedInput.type = "checkbox";
+  publishedInput.checked = draft.isPublished;
+  publishedInput.addEventListener("change", () => {
+    draft.isPublished = publishedInput.checked;
+  });
+  publishedField.append(publishedInput, document.createTextNode(" ظاهر للزوار"));
+  editor.append(legend, nameField, categoryField, descriptionField, coverField, publishedField);
+  return editor;
 }
 
 function renderFiles() {
@@ -449,6 +556,7 @@ categoryForm.addEventListener("submit", async (event) => {
     assertSuccess(await client.from("categories").insert({
       name_ar: values.get("name_ar").trim(),
       name_en: values.get("name_en").trim(),
+      parent_id: values.get("parent_id") || null,
       is_coming_soon: values.has("is_coming_soon"),
       position: categories.length,
     }));
@@ -522,6 +630,7 @@ fileForm.addEventListener("submit", async (event) => {
   try {
     const newFiles = [...uploadInput.files];
     const newCover = coverInput.files[0];
+    const isBatchUpload = !existing && newFiles.length > 1;
     if (!existing && newFiles.length === 0) {
       throw new Error("اختر ملفًا واحدًا على الأقل للرفع.");
     }
@@ -536,10 +645,24 @@ fileForm.addEventListener("submit", async (event) => {
     if (unsupportedFile) {
       throw new Error(`نوع الملف «${unsupportedFile.name}» غير مدعوم.`);
     }
-    if (newCover?.size > maxCoverSize) {
+    const drafts = isBatchUpload
+      ? newFiles.map((file) => uploadDrafts.get(file))
+      : [];
+    if (isBatchUpload && drafts.some((draft) => !draft)) {
+      throw new Error("تعذر قراءة تفاصيل أحد الملفات. أعد اختيار الملفات.");
+    }
+    if (isBatchUpload && drafts.some((draft) =>
+      !draft.name.trim() || !categories.some((category) => category.id === draft.categoryId))) {
+      throw new Error("أدخل اسمًا واختر تصنيفًا صالحًا لكل ملف.");
+    }
+    const covers = isBatchUpload ? drafts.map((draft) => draft.cover) : [newCover];
+    const oversizedCover = covers.find((cover) => cover?.size > maxCoverSize);
+    if (oversizedCover) {
       throw new Error("حجم صورة الغلاف أكبر من الحد المسموح (50 MB).");
     }
-    if (newCover && !getUploadMimeType(newCover).startsWith("image/")) {
+    const unsupportedCover = covers.find((cover) =>
+      cover && !getUploadMimeType(cover).startsWith("image/"));
+    if (unsupportedCover) {
       throw new Error("اختر صورة صحيحة للغلاف.");
     }
     let objectPath = existing?.object_path;
@@ -547,7 +670,11 @@ fileForm.addEventListener("submit", async (event) => {
     let mimeType = existing?.mime_type;
     let sizeBytes = existing?.size_bytes;
     const uploadedFilePaths = [];
-    const uploads = [...newFiles, ...(newCover?.size ? [newCover] : [])];
+    const uploadedCoverPaths = [];
+    const uploads = isBatchUpload
+      ? newFiles.flatMap((file, index) =>
+        [file, ...(covers[index]?.size ? [covers[index]] : [])])
+      : [...newFiles, ...(newCover?.size ? [newCover] : [])];
     const uploadSize = uploads.reduce((total, file) => total + file.size, 0);
     let completedBytes = 0;
     uploadProgress.hidden = uploads.length === 0;
@@ -573,8 +700,23 @@ fileForm.addEventListener("submit", async (event) => {
         mimeType = getUploadMimeType(newFile);
         sizeBytes = newFile.size;
       }
+      const fileCover = isBatchUpload ? covers[index] : existing ? null : covers[index];
+      if (fileCover?.size) {
+        uploadStatus.textContent = `جارٍ رفع غلاف ${newFile.name}...`;
+        const coverPathForFile = await uploadAsset(fileCover, "covers", (uploadedBytes) => {
+          uploadProgress.value = completedBytes + uploadedBytes;
+          const percent = Math.floor((uploadedBytes / fileCover.size) * 100);
+          uploadStatus.textContent = `جارٍ رفع غلاف ${newFile.name} · ${percent}%`;
+        });
+        uploadedCoverPaths.push(coverPathForFile);
+        uploadedPaths.push(coverPathForFile);
+        completedBytes += fileCover.size;
+        uploadProgress.value = completedBytes;
+      } else {
+        uploadedCoverPaths.push(null);
+      }
     }
-    if (newCover?.size) {
+    if (existing && newCover?.size) {
       uploadStatus.textContent = `جارٍ رفع ${newCover.name}...`;
       coverPath = await uploadAsset(newCover, "covers", (uploadedBytes) => {
         uploadProgress.value = completedBytes + uploadedBytes;
@@ -585,15 +727,13 @@ fileForm.addEventListener("submit", async (event) => {
       completedBytes += newCover.size;
       uploadProgress.value = completedBytes;
     }
-    const baseRecord = {
-      description: values.get("description").trim(),
-      category_id: values.get("category_id"),
-      position: Number(values.get("position")) || 0,
-      is_published: values.has("is_published"),
-    };
+    const basePosition = Number(values.get("position")) || 0;
     const result = existing
       ? await client.from("files").update({
-          ...baseRecord,
+          description: values.get("description").trim(),
+          category_id: values.get("category_id"),
+          position: basePosition,
+          is_published: values.has("is_published"),
           name: values.get("name").trim() || existing.name,
           object_path: objectPath,
           cover_path: coverPath || null,
@@ -601,15 +741,17 @@ fileForm.addEventListener("submit", async (event) => {
           size_bytes: sizeBytes,
         }).eq("id", existing.id)
       : await client.from("files").insert(newFiles.map((file, index) => ({
-          ...baseRecord,
-          name: newFiles.length === 1 && values.get("name").trim()
-            ? values.get("name").trim()
-            : file.name.replace(/\.[^.]+$/, ""),
+          description: isBatchUpload ? drafts[index].description.trim() : values.get("description").trim(),
+          category_id: isBatchUpload ? drafts[index].categoryId : values.get("category_id"),
+          position: basePosition + index,
+          is_published: isBatchUpload ? drafts[index].isPublished : values.has("is_published"),
+          name: isBatchUpload
+            ? drafts[index].name.trim()
+            : values.get("name").trim() || file.name.replace(/\.[^.]+$/, ""),
           object_path: uploadedFilePaths[index],
-          cover_path: newFiles.length === 1 ? coverPath || null : null,
+          cover_path: uploadedCoverPaths[index] || null,
           mime_type: getUploadMimeType(file),
           size_bytes: file.size,
-          position: baseRecord.position + index,
         })));
     assertSuccess(result);
     saved = true;

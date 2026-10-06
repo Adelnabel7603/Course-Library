@@ -9,11 +9,19 @@ create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   name_ar text not null unique check (length(trim(name_ar)) > 0),
   name_en text not null default '',
+  parent_id uuid references public.categories(id) on delete set null,
   is_active boolean not null default true,
   is_coming_soon boolean not null default false,
   position integer not null default 0,
   created_at timestamptz not null default now()
 );
+
+alter table public.categories
+  add column if not exists parent_id uuid
+  references public.categories(id) on delete set null;
+
+create index if not exists categories_parent_position_idx
+  on public.categories (parent_id, position);
 
 create table if not exists public.files (
   id uuid primary key default gen_random_uuid(),

@@ -383,10 +383,8 @@ function renderCategories() {
     { key: "all", label: text.all, available: true },
     ...categories.map((category) => ({
       key: category.id || category.key,
-      label: language === "en" && category.name_en
-        ? category.name_en
-        : text.categories[category.key] || category.name_ar || category.key,
-      available: category.available,
+      label: categoryLabel(category),
+      available: isCategoryAvailable(category),
     })),
   ];
 
@@ -416,6 +414,54 @@ function renderCategories() {
     }),
   );
   updateCategoryScrollControls();
+}
+
+function categoryLabel(category) {
+  const names = [];
+  const visited = new Set();
+  let current = category;
+  while (current && (!current.id || !visited.has(current.id))) {
+    if (current.id) visited.add(current.id);
+    names.unshift(language === "en" && current.name_en
+      ? current.name_en
+      : textCategoryName(current));
+    if (!current.parent_id) break;
+    current = categories.find((item) => item.id === current.parent_id);
+  }
+  return names.join(" / ");
+}
+
+function textCategoryName(category) {
+  return currentText().categories[category.key]
+    || category.name_ar
+    || category.key;
+}
+
+function isCategoryAvailable(category) {
+  const visited = new Set();
+  let current = category;
+  while (current && (!current.id || !visited.has(current.id))) {
+    if (!current.available || current.is_coming_soon) return false;
+    if (current.id) visited.add(current.id);
+    if (!current.parent_id) break;
+    current = categories.find((item) => item.id === current.parent_id);
+  }
+  return true;
+}
+
+function getCategoryAndDescendantIds(categoryId) {
+  const ids = new Set([categoryId]);
+  let foundDescendant = true;
+  while (foundDescendant) {
+    foundDescendant = false;
+    for (const category of categories) {
+      if (category.parent_id && ids.has(category.parent_id) && !ids.has(category.id)) {
+        ids.add(category.id);
+        foundDescendant = true;
+      }
+    }
+  }
+  return ids;
 }
 
 function updateCategoryScrollControls() {
@@ -466,12 +512,15 @@ function fileUrl(fileName) {
 function renderFiles() {
   const text = currentText();
   const query = searchInput.value.trim().toLocaleLowerCase();
+  const selectedCategoryIds = activeCategory === "all"
+    ? null
+    : getCategoryAndDescendantIds(activeCategory);
   const visibleFiles = availableFiles.filter((file) => {
     const matchesCategory =
-      activeCategory === "all" ||
+      !selectedCategoryIds ||
       (cloudLibraryEnabled
-        ? file.category_id === activeCategory
-        : file.category === activeCategory);
+        ? selectedCategoryIds.has(file.category_id)
+        : selectedCategoryIds.has(file.category));
     const matchesSearch = `${file.name} ${file.description || ""}`
       .toLocaleLowerCase()
       .includes(query);

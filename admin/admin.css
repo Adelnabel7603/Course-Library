@@ -343,6 +343,52 @@ button:disabled { cursor: wait; opacity: .6; }
 .file-selection-detail { display: grid; min-width: 0; gap: 1px; }
 .file-selection-detail strong { overflow: hidden; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
 .file-selection-detail small { color: var(--muted); font-size: .72rem; }
+.upload-editors { display: grid; gap: 12px; }
+.upload-editor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+  min-width: 0;
+  margin: 0;
+  padding: 15px;
+  border: 1px solid #dce9df;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fbfdfb, #f5f9f5);
+}
+.upload-editor legend {
+  padding-inline: 7px;
+  color: #285a48;
+  font-size: .88rem;
+  font-weight: 700;
+}
+.upload-editor > label:not(.check-label) {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 6px;
+  font-size: .84rem;
+  font-weight: 600;
+}
+.upload-editor > .wide { grid-column: 1 / -1; }
+.upload-editor-cover {
+  position: relative;
+  min-height: 42px;
+  align-content: center !important;
+  padding: 8px 10px;
+  border: 1px dashed #9ab6a4;
+  border-radius: 10px;
+  color: #285a48;
+  background: #fff;
+  cursor: pointer;
+}
+.upload-editor-cover input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
 .remove-selected-file {
   display: grid;
   width: 34px;
@@ -479,6 +525,8 @@ td { font-size: .88rem; }
   .category-actions .small-button { min-height: 42px; flex: 1 1 auto; }
   .file-form { grid-template-columns: 1fr; }
   .wide { grid-column: auto; }
+  .upload-editor { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+  .upload-editor > .wide { grid-column: auto; }
   .upload-dropzone { min-height: 92px; padding: 12px; }
   .upload-symbol { width: 42px; height: 42px; }
   .cover-picker { flex-wrap: wrap; }

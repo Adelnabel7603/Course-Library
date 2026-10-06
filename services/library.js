@@ -4,10 +4,10 @@ export async function getPublicLibrary() {
   const client = requireSupabase();
   const [{ data: categories, error: categoriesError }, { data: files, error: filesError }] =
     await Promise.all([
-      client.from("categories").select("*").eq("is_active", true).order("position"),
+      client.from("categories").select("*").order("position"),
       client
         .from("files")
-        .select("*, categories(id, name_ar, name_en, is_coming_soon)")
+        .select("*, categories(id, name_ar, name_en, parent_id, is_coming_soon)")
         .eq("is_published", true)
         .order("position")
         .order("created_at", { ascending: false }),
@@ -16,7 +16,22 @@ export async function getPublicLibrary() {
   if (categoriesError) throw categoriesError;
   if (filesError) throw filesError;
 
-  const visibleCategories = categories.filter((category) => !category.is_coming_soon);
+  const categoriesById = new Map(categories.map((category) => [category.id, category]));
+  const categoryChainIsVisible = (category, hideComingSoon) => {
+    let current = category;
+    const visited = new Set();
+    while (current && !visited.has(current.id)) {
+      if (!current.is_active || (hideComingSoon && current.is_coming_soon)) return false;
+      visited.add(current.id);
+      if (!current.parent_id) return true;
+      current = categoriesById.get(current.parent_id);
+    }
+    return false;
+  };
+  const publicCategories = categories.filter((category) =>
+    categoryChainIsVisible(category, false));
+  const visibleCategories = publicCategories.filter((category) =>
+    categoryChainIsVisible(category, true));
   const categoryIds = new Set(visibleCategories.map((category) => category.id));
   const visibleFiles = files.filter((file) => categoryIds.has(file.category_id));
   const paths = [...new Set(visibleFiles.flatMap((file) =>
@@ -34,7 +49,7 @@ export async function getPublicLibrary() {
     }
   }
   return {
-    categories,
+    categories: publicCategories,
     files: visibleFiles.map((file) => ({
       ...file,
       category: file.categories.name_ar,

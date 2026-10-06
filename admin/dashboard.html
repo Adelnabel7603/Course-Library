@@ -72,6 +72,10 @@
               <span><span class="field-icon field-icon-en" aria-hidden="true">En</span> الاسم بالإنجليزية <span class="optional-label">اختياري</span></span>
               <input name="name_en" placeholder="e.g. Financial Accounting" />
             </label>
+            <label class="category-input">
+              <span><span class="field-icon" aria-hidden="true">↳</span> داخل تصنيف رئيسي <span class="optional-label">اختياري</span></span>
+              <select name="parent_id"></select>
+            </label>
             <label class="coming-soon-option">
               <input name="is_coming_soon" type="checkbox" />
               <span class="coming-soon-toggle" aria-hidden="true"></span>
@@ -89,9 +93,9 @@
         <div class="panel-heading"><div><h2 id="file-form-heading">إضافة ملف</h2><p class="muted">ارفع ملفًا، أدخل تفاصيله، ثم انشره مباشرة في المكتبة.</p></div></div>
         <form id="file-form" class="file-form">
           <input name="id" type="hidden" />
-          <label>اسم الملف<input name="name" maxlength="180" placeholder="اختياري؛ يُستخدم اسم الملف تلقائيًا" /></label>
-          <label>التصنيف<select name="category_id" required></select></label>
-          <label class="wide">وصف الملف<textarea name="description" rows="3"></textarea></label>
+          <label class="file-default-field">اسم الملف<input name="name" maxlength="180" placeholder="اختياري؛ يُستخدم اسم الملف تلقائيًا" /></label>
+          <label class="file-default-field">التصنيف<select name="category_id" required></select></label>
+          <label class="wide file-default-field">وصف الملف<textarea name="description" rows="3"></textarea></label>
           <div class="upload-field wide">
             <span class="upload-label">الملفات المراد إضافتها</span>
             <label class="upload-dropzone" for="file-input">
@@ -112,14 +116,15 @@
             </label>
             <ul id="file-selection" class="file-selection" aria-live="polite"></ul>
           </div>
-          <label class="cover-picker wide">
+          <div id="upload-editors" class="upload-editors wide" hidden></div>
+          <label class="cover-picker wide file-default-field">
             <span class="cover-picker-icon" aria-hidden="true">▧</span>
             <span class="cover-picker-copy"><strong>صورة غلاف اختيارية</strong><small id="cover-file-name">تُستخدم مع ملف واحد فقط</small></span>
             <span class="cover-picker-button">اختيار صورة</span>
             <input name="cover" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
           </label>
           <label>الترتيب<input name="position" type="number" value="0" /></label>
-          <label class="check-label"><input name="is_published" type="checkbox" checked /> ظاهر للزوار</label>
+          <label class="check-label file-default-field"><input name="is_published" type="checkbox" checked /> ظاهر للزوار</label>
           <div class="form-actions wide">
             <button class="primary-button" type="submit">حفظ الملف</button>
             <button class="secondary-button" id="cancel-edit" type="button" hidden>إلغاء التعديل</button>
