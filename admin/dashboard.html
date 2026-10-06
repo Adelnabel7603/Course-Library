@@ -130,6 +130,29 @@
       </section>
 
       <section class="panel">
+        <div class="panel-heading">
+          <div><h2>إعلان أو تعليمات للزوار</h2><p class="muted">يظهر الإعلان في جرس الإشعارات، ويصل للأجهزة التي فعّلت الإشعارات.</p></div>
+        </div>
+        <form id="notification-form" class="notification-form">
+          <label>عنوان الإشعار<input name="title" maxlength="180" placeholder="مثال: تعليمات امتحان منتصف الفصل" required /></label>
+          <label>نص الإشعار أو التعليق على الصورة<textarea name="body" rows="4" maxlength="2000" placeholder="اكتب الإعلان أو التعليق الذي سيظهر مع الصورة..." required></textarea></label>
+          <label class="notification-image-picker">
+            <span>صورة مع الإشعار <small>اختياري · PNG أو JPG أو WebP أو GIF · حتى 10 MB</small></span>
+            <input id="notification-image" name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+          </label>
+          <div class="notification-image-preview-wrap" id="notification-image-preview-wrap" hidden>
+            <img id="notification-image-preview" alt="معاينة صورة الإشعار" />
+            <span id="notification-image-name"></span>
+          </div>
+          <button class="primary-button" type="submit">نشر الإشعار</button>
+        </form>
+        <div class="admin-notification-history">
+          <h3>الإشعارات المنشورة</h3>
+          <ul id="admin-notification-list" class="admin-notification-list"></ul>
+        </div>
+      </section>
+
+      <section class="panel">
         <div class="panel-heading file-list-heading">
           <div><h2>الملفات</h2><p id="file-count" class="muted"></p></div>
           <input id="file-search" type="search" placeholder="ابحث عن ملف..." aria-label="ابحث عن ملف" />

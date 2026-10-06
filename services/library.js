@@ -46,6 +46,25 @@ export async function getPublicLibrary() {
   };
 }
 
+export async function getPublicNotifications() {
+  const client = requireSupabase();
+  const { data, error } = await client
+    .from("notifications")
+    .select("id, title, body, type, file_id, image_path, created_at")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+
+  return data.map((notification) => ({
+    ...notification,
+    imageUrl: notification.image_path
+      ? client.storage.from("notification-images")
+        .getPublicUrl(notification.image_path).data.publicUrl
+      : null,
+  }));
+}
+
 function createDownloadUrl(signedUrl, fileName) {
   if (!signedUrl) return signedUrl;
   const url = new URL(signedUrl);
@@ -59,7 +78,16 @@ export function subscribeToLibrary(onChange) {
     .channel("public-library")
     .on("postgres_changes", { event: "*", schema: "public", table: "files" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "categories" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, onChange)
     .subscribe();
+}
+
+export async function registerPushSubscription(subscription) {
+  const { data, error } = await requireSupabase().functions.invoke("register-push", {
+    body: { subscription },
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function recordDownload(fileId) {

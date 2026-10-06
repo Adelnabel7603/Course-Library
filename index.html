@@ -60,6 +60,22 @@
         </a>
 
         <div class="toolbar">
+          <div class="notification-menu">
+            <button class="outline-button notification-button" id="notification-button" type="button" aria-label="الإشعارات" data-aria-label="notifications" aria-expanded="false" aria-controls="notification-panel">
+              <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>
+              <span data-text="notifications">الإشعارات</span>
+              <span class="notification-badge" id="notification-badge" hidden></span>
+            </button>
+            <section class="notification-panel" id="notification-panel" aria-labelledby="notification-heading" hidden>
+              <div class="notification-panel-heading">
+                <div><h2 id="notification-heading" data-text="notifications">الإشعارات</h2><p id="notification-count" class="notification-count"></p></div>
+                <button id="mark-notifications-read" class="notification-read-button" type="button" data-text="markRead">تحديد كمقروءة</button>
+              </div>
+              <button class="notification-enable" id="enable-push-button" type="button" hidden data-text="enableNotifications">تفعيل إشعارات الجهاز</button>
+              <p id="notification-empty" class="notification-empty" hidden data-text="noNotifications">لا توجد إشعارات جديدة.</p>
+              <ul id="notification-list" class="notification-list" aria-live="polite"></ul>
+            </section>
+          </div>
           <button class="outline-button install-button" id="install-button" type="button" aria-label="تثبيت التطبيق" data-aria-label="install">
             <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4 4 4" /><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" /></svg>
             <span data-text="install">تثبيت التطبيق</span>

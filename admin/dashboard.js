@@ -9,6 +9,12 @@ const categoryForm = document.querySelector("#category-form");
 const categoryList = document.querySelector("#category-list");
 const categoryCount = document.querySelector("#category-count");
 const fileForm = document.querySelector("#file-form");
+const notificationForm = document.querySelector("#notification-form");
+const adminNotificationList = document.querySelector("#admin-notification-list");
+const notificationImageInput = document.querySelector("#notification-image");
+const notificationImagePreviewWrap = document.querySelector("#notification-image-preview-wrap");
+const notificationImagePreview = document.querySelector("#notification-image-preview");
+const notificationImageName = document.querySelector("#notification-image-name");
 const fileSearch = document.querySelector("#file-search");
 const fileTableBody = document.querySelector("#file-table-body");
 const fileCount = document.querySelector("#file-count");
@@ -23,12 +29,21 @@ const migrationProgress = document.querySelector("#migration-progress");
 const migrationButton = document.querySelector("#migration-button");
 let categories = [];
 let files = [];
+let notifications = [];
 let toastTimeout;
 let tusClientPromise;
+let notificationPreviewUrl;
 
 const maxFileSize = 1024 ** 3;
 const maxCoverSize = 50 * 1024 ** 2;
+const maxNotificationImageSize = 10 * 1024 ** 2;
 const resumableUploadThreshold = 6 * 1024 ** 2;
+const notificationImageMimeTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 
 const uploadMimeTypes = new Set([
   "application/pdf",
@@ -129,6 +144,47 @@ function assertSuccess({ data, error }) {
   return data;
 }
 
+async function sendPushAlert(notificationId) {
+  if (!supabaseConfig.vapidPublicKey) {
+    return "حُفظ الإشعار في الجرس، لكن مفتاح VAPID العام غير مضبوط.";
+  }
+  const { data, error } = await client.functions.invoke("send-push-notification", {
+    body: { notificationId },
+  });
+  if (error) return `حُفظ الإشعار، لكن تعذّر إرسال إشعارات الأجهزة: ${error.message}`;
+  if (data?.failed) {
+    return `حُفظ الإشعار، وتعذّر الإرسال إلى ${data.failed} جهاز.`;
+  }
+  if (!data?.sent) {
+    return "حُفظ الإشعار في الجرس؛ لم يفعّل أي زائر إشعارات الجهاز بعد.";
+  }
+  return "";
+}
+
+function renderAdminNotifications() {
+  adminNotificationList.replaceChildren(...notifications.map((notification) => {
+    const row = document.createElement("li");
+    const title = document.createElement("strong");
+    title.textContent = notification.title;
+    const body = document.createElement("p");
+    body.textContent = notification.body;
+    row.append(title, body);
+    if (notification.image_path) {
+      const image = document.createElement("img");
+      image.src = client.storage.from("notification-images")
+        .getPublicUrl(notification.image_path).data.publicUrl;
+      image.alt = notification.title;
+      image.loading = "lazy";
+      row.append(image);
+    }
+    const created = document.createElement("time");
+    created.dateTime = notification.created_at;
+    created.textContent = new Date(notification.created_at).toLocaleString("ar");
+    row.append(created);
+    return row;
+  }));
+}
+
 async function requireAdmin() {
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) {
@@ -150,15 +206,18 @@ async function requireAdmin() {
 }
 
 async function loadData() {
-  const [categoryData, fileData] = await Promise.all([
+  const [categoryData, fileData, notificationData] = await Promise.all([
     client.from("categories").select("*").order("position"),
     client.from("files").select("*, categories(id, name_ar, name_en)").order("position").order("created_at", { ascending: false }),
+    client.from("notifications").select("*").order("created_at", { ascending: false }).limit(50),
   ]);
   categories = assertSuccess(categoryData);
   files = assertSuccess(fileData);
+  notifications = assertSuccess(notificationData);
   renderCategories();
   renderCategoryOptions();
   renderFiles();
+  renderAdminNotifications();
 }
 
 function renderCategories() {
@@ -652,6 +711,95 @@ migrationButton.addEventListener("click", async () => {
     notify("اكتمل ترحيل الملفات الأربعة عشر.");
   } catch (error) { notify(error.message, true); }
   finally { migrationButton.disabled = false; }
+});
+
+function clearNotificationImagePreview() {
+  if (notificationPreviewUrl) URL.revokeObjectURL(notificationPreviewUrl);
+  notificationPreviewUrl = null;
+  notificationImagePreview.removeAttribute("src");
+  notificationImagePreviewWrap.hidden = true;
+  notificationImageName.textContent = "";
+}
+
+notificationImageInput.addEventListener("change", () => {
+  clearNotificationImagePreview();
+  const image = notificationImageInput.files[0];
+  if (!image) return;
+  if (!notificationImageMimeTypes.has(image.type)) {
+    notificationImageInput.value = "";
+    notify("اختر صورة بصيغة PNG أو JPG أو WebP أو GIF.", true);
+    return;
+  }
+  if (image.size > maxNotificationImageSize) {
+    notificationImageInput.value = "";
+    notify("يجب ألا يتجاوز حجم صورة الإشعار 10 MB.", true);
+    return;
+  }
+  notificationPreviewUrl = URL.createObjectURL(image);
+  notificationImagePreview.src = notificationPreviewUrl;
+  notificationImageName.textContent = image.name;
+  notificationImagePreviewWrap.hidden = false;
+});
+
+notificationForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submit = notificationForm.querySelector('[type="submit"]');
+  const values = new FormData(notificationForm);
+  const title = String(values.get("title") || "").trim();
+  const body = String(values.get("body") || "").trim();
+  const image = notificationImageInput.files[0];
+  if (!title || !body) {
+    notify("أدخل عنوان الإشعار ونصه أو التعليق على الصورة.", true);
+    return;
+  }
+  if (image && (
+    !notificationImageMimeTypes.has(image.type) ||
+    image.size > maxNotificationImageSize
+  )) {
+    notify("تحقق من صيغة صورة الإشعار وحجمها (حتى 10 MB).", true);
+    return;
+  }
+
+  submit.disabled = true;
+  let imagePath;
+  let notificationSaved = false;
+  try {
+    if (image) {
+      const extension = image.name.match(/\.[A-Za-z0-9]{1,8}$/)?.[0].toLowerCase() || "";
+      const path = `${crypto.randomUUID()}/${crypto.randomUUID()}${extension}`;
+      const { data, error } = await client.storage.from("notification-images").upload(
+        path,
+        image,
+        { contentType: image.type, cacheControl: "31536000", upsert: false },
+      );
+      if (error) throw error;
+      imagePath = data.path;
+    }
+    const notification = assertSuccess(await client.from("notifications")
+      .insert({ title, body, type: "announcement", image_path: imagePath || null })
+      .select("id")
+      .single());
+    notificationSaved = true;
+    let pushWarning = "";
+    try {
+      pushWarning = await sendPushAlert(notification.id);
+    } catch (error) {
+      pushWarning = `حُفظ الإشعار، لكن تعذّر إرسال إشعارات الأجهزة: ${error.message}`;
+    }
+    notificationForm.reset();
+    clearNotificationImagePreview();
+    await loadData();
+    notify(pushWarning || "تم نشر الإشعار في الجرس وإرساله للأجهزة المفعّلة.", Boolean(pushWarning));
+  } catch (error) {
+    if (imagePath && !notificationSaved) {
+      const { error: cleanupError } = await client.storage
+        .from("notification-images").remove([imagePath]);
+      if (cleanupError) console.error("Could not remove the unused notification image.", cleanupError);
+    }
+    notify(error.message || "تعذر نشر الإشعار.", true);
+  } finally {
+    submit.disabled = false;
+  }
 });
 
 document.querySelector("#logout-button").disabled = true;

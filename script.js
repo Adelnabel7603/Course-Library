@@ -2,15 +2,28 @@ import { legacyFiles, legacyCategories } from "./services/legacy-catalog.js";
 import { isSupabaseConfigured } from "./services/supabase.js";
 import {
   getPublicLibrary,
+  getPublicNotifications,
+  registerPushSubscription,
   recordDownload,
   subscribeToLibrary,
 } from "./services/library.js";
+import { supabaseConfig } from "./config.js";
 
 const files = legacyFiles;
 
 const translations = {
   ar: {
     brand: "مكتبة المقررات",
+    notifications: "الإشعارات",
+    markRead: "تحديد كمقروءة",
+    enableNotifications: "تفعيل إشعارات الجهاز",
+    noNotifications: "لا توجد إشعارات جديدة.",
+    unreadCount: (count) => `${count} غير مقروء`,
+    pushEnabled: "إشعارات الجهاز مفعّلة",
+    pushEnableSuccess: "تم تفعيل إشعارات الجهاز.",
+    pushPermissionDenied: "لم تسمح بإشعارات الجهاز.",
+    pushUnavailable: "تعذر تفعيل إشعارات الجهاز على هذا المتصفح.",
+    pushSetupMissing: "إشعارات الجهاز غير مهيأة؛ ستظهر التحديثات في الجرس.",
     admin: "الإدارة",
     install: "تثبيت التطبيق",
     installing: "جارٍ التثبيت...",
@@ -63,6 +76,16 @@ const translations = {
   },
   en: {
     brand: "Course Library",
+    notifications: "Notifications",
+    markRead: "Mark all as read",
+    enableNotifications: "Enable device notifications",
+    noNotifications: "No new notifications.",
+    unreadCount: (count) => `${count} unread`,
+    pushEnabled: "Device notifications are enabled",
+    pushEnableSuccess: "Device notifications enabled.",
+    pushPermissionDenied: "Device notifications were not allowed.",
+    pushUnavailable: "Device notifications are unavailable in this browser.",
+    pushSetupMissing: "Device notifications are not configured; updates will appear in the bell.",
     admin: "Admin",
     install: "Install app",
     installing: "Installing...",
@@ -127,6 +150,14 @@ const emptyState = document.querySelector("#empty-state");
 const themeButton = document.querySelector("#theme-button");
 const themeIcon = document.querySelector("#theme-icon");
 const languageButton = document.querySelector("#language-button");
+const notificationButton = document.querySelector("#notification-button");
+const notificationPanel = document.querySelector("#notification-panel");
+const notificationBadge = document.querySelector("#notification-badge");
+const notificationCount = document.querySelector("#notification-count");
+const notificationList = document.querySelector("#notification-list");
+const notificationEmpty = document.querySelector("#notification-empty");
+const markNotificationsRead = document.querySelector("#mark-notifications-read");
+const enablePushButton = document.querySelector("#enable-push-button");
 const shareButton = document.querySelector("#share-button");
 const installButton = document.querySelector("#install-button");
 const installProgress = document.querySelector("#install-progress");
@@ -145,6 +176,11 @@ let toastTimeout;
 let installPrompt;
 let installCompletionTimeout;
 let activeDownload;
+let notifications = [];
+let notificationAudioContext;
+let notificationsLoaded = false;
+const notificationReadKey = "course-library-read-notifications-v1";
+const readNotificationIds = new Set(loadReadNotificationIds());
 
 let categories = legacyCategories.map((category) => ({
   ...category,
@@ -153,6 +189,23 @@ let categories = legacyCategories.map((category) => ({
 }));
 let availableFiles = files;
 let cloudLibraryEnabled = false;
+
+function loadReadNotificationIds() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(notificationReadKey) || "[]");
+    return Array.isArray(stored) ? stored.filter((id) => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveReadNotificationIds() {
+  try {
+    localStorage.setItem(notificationReadKey, JSON.stringify([...readNotificationIds]));
+  } catch (error) {
+    console.warn("Notification read state could not be saved.", error);
+  }
+}
 
 function currentText() {
   return translations[language];
@@ -189,6 +242,139 @@ function setLanguage(nextLanguage) {
   );
   renderCategories();
   renderFiles();
+  renderNotifications();
+}
+
+function renderNotifications() {
+  const unread = notifications.filter((notification) =>
+    !readNotificationIds.has(notification.id));
+  notificationBadge.hidden = unread.length === 0;
+  notificationBadge.textContent = unread.length > 99 ? "99+" : String(unread.length);
+  notificationBadge.setAttribute("aria-label", currentText().unreadCount(unread.length));
+  notificationCount.textContent = currentText().unreadCount(unread.length);
+  markNotificationsRead.disabled = unread.length === 0;
+  notificationEmpty.hidden = notifications.length > 0;
+  notificationList.replaceChildren(...notifications.map((notification) => {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.className = `notification-item${readNotificationIds.has(notification.id) ? "" : " is-unread"}`;
+    button.type = "button";
+    button.dataset.notificationId = notification.id;
+    const title = document.createElement("span");
+    title.className = "notification-item-title";
+    title.textContent = notification.title;
+    button.append(title);
+    if (notification.body) {
+      const body = document.createElement("span");
+      body.className = "notification-item-body";
+      body.textContent = notification.body;
+      button.append(body);
+    }
+    if (notification.imageUrl) {
+      const image = document.createElement("img");
+      image.className = "notification-item-image";
+      image.src = notification.imageUrl;
+      image.alt = notification.title;
+      image.loading = "lazy";
+      button.append(image);
+    }
+    const time = document.createElement("time");
+    time.dateTime = notification.created_at;
+    time.textContent = new Intl.DateTimeFormat(language, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(notification.created_at));
+    button.append(time);
+    button.addEventListener("click", () => openNotification(notification));
+    item.append(button);
+    return item;
+  }));
+  updatePushButton();
+}
+
+async function updatePushButton() {
+  const supported = "Notification" in window && "serviceWorker" in navigator &&
+    "PushManager" in window && Boolean(supabaseConfig.vapidPublicKey);
+  enablePushButton.hidden = !supported || Notification.permission === "denied";
+  enablePushButton.disabled = false;
+  if (!supported || Notification.permission !== "granted") {
+    enablePushButton.textContent = currentText().enableNotifications;
+    return;
+  }
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    if (await registration.pushManager.getSubscription()) {
+      enablePushButton.textContent = currentText().pushEnabled;
+      enablePushButton.disabled = true;
+      return;
+    }
+    enablePushButton.textContent = currentText().enableNotifications;
+  } catch (error) {
+    showToast(error.message || currentText().pushUnavailable);
+  }
+}
+
+function markNotificationRead(notificationId) {
+  readNotificationIds.add(notificationId);
+  saveReadNotificationIds();
+  renderNotifications();
+}
+
+function openNotification(notification) {
+  markNotificationRead(notification.id);
+  const file = availableFiles.find((item) => item.id === notification.file_id);
+  if (!file) return;
+  activeCategory = file.category_id;
+  searchInput.value = "";
+  renderCategories();
+  renderFiles();
+  document.querySelector("#library").scrollIntoView({ behavior: "smooth" });
+  window.setTimeout(() => {
+    document.querySelector(`[data-file-id="${CSS.escape(file.id)}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 100);
+}
+
+function toggleNotificationPanel(forceOpen) {
+  const shouldOpen = forceOpen ?? notificationPanel.hidden;
+  notificationPanel.hidden = !shouldOpen;
+  notificationButton.setAttribute("aria-expanded", String(shouldOpen));
+  if (shouldOpen) updatePushButton();
+}
+
+function decodeVapidPublicKey(key) {
+  const padding = "=".repeat((4 - (key.length % 4)) % 4);
+  const base64 = (key + padding).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+}
+
+function unlockNotificationSound() {
+  if (!("AudioContext" in window)) return;
+  notificationAudioContext ||= new AudioContext();
+  if (notificationAudioContext.state === "suspended") {
+    notificationAudioContext.resume().catch((error) => {
+      console.warn("Notification sound could not be enabled by this browser.", error);
+    });
+  }
+}
+
+function playNotificationSound() {
+  if (!notificationAudioContext || notificationAudioContext.state !== "running") return;
+  const context = notificationAudioContext;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const now = context.currentTime;
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(880, now);
+  oscillator.frequency.setValueAtTime(1174.66, now + 0.12);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.12, now + 0.025);
+  gain.gain.setValueAtTime(0.12, now + 0.13);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(now);
+  oscillator.stop(now + 0.33);
 }
 
 function renderCategories() {
@@ -398,6 +584,7 @@ function renderFiles() {
 
 async function loadCloudLibrary() {
   const library = await getPublicLibrary();
+  const previousIds = new Set(notifications.map((notification) => notification.id));
   categories = library.categories.map((category) => ({
     ...category,
     key: category.name_ar,
@@ -413,6 +600,20 @@ async function loadCloudLibrary() {
   }
   renderCategories();
   renderFiles();
+  try {
+    const latestNotifications = await getPublicNotifications();
+    const newNotifications = notificationsLoaded
+      ? latestNotifications.filter((notification) => !previousIds.has(notification.id))
+      : [];
+    notifications = latestNotifications;
+    notificationsLoaded = true;
+    renderNotifications();
+    if (newNotifications.length && document.visibilityState === "visible") {
+      playNotificationSound();
+    }
+  } catch (error) {
+    showToast(error.message || "تعذر تحميل الإشعارات.");
+  }
 }
 
 function setDarkMode(enabled) {
@@ -581,6 +782,54 @@ window.addEventListener("resize", updateCategoryScrollControls);
 languageButton.addEventListener("click", () =>
   setLanguage(language === "ar" ? "en" : "ar"),
 );
+notificationButton.addEventListener("click", () => {
+  unlockNotificationSound();
+  toggleNotificationPanel();
+});
+markNotificationsRead.addEventListener("click", () => {
+  notifications.forEach(({ id }) => readNotificationIds.add(id));
+  saveReadNotificationIds();
+  renderNotifications();
+});
+enablePushButton.addEventListener("click", async () => {
+  unlockNotificationSound();
+  if (!supabaseConfig.vapidPublicKey) {
+    showToast(currentText().pushSetupMissing);
+    return;
+  }
+  enablePushButton.disabled = true;
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      showToast(currentText().pushPermissionDenied);
+      enablePushButton.disabled = false;
+      return;
+    }
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription() ||
+      await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: decodeVapidPublicKey(supabaseConfig.vapidPublicKey),
+      });
+    await registerPushSubscription(subscription.toJSON());
+    enablePushButton.textContent = currentText().pushEnabled;
+    showToast(currentText().pushEnableSuccess);
+  } catch (error) {
+    enablePushButton.disabled = false;
+    showToast(error.message || currentText().pushUnavailable);
+  }
+});
+document.addEventListener("pointerdown", unlockNotificationSound, { once: true });
+document.addEventListener("keydown", unlockNotificationSound, { once: true });
+document.addEventListener("click", (event) => {
+  const path = event.composedPath();
+  if (!path.includes(notificationPanel) && !path.includes(notificationButton)) {
+    toggleNotificationPanel(false);
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") toggleNotificationPanel(false);
+});
 themeButton.addEventListener("click", () =>
   setDarkMode(!document.body.classList.contains("dark")),
 );
