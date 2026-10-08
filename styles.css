@@ -427,6 +427,10 @@ h1 {
   text-align: start;
 }
 
+.category-tree-node.has-children > .category-button {
+  grid-column: 1;
+}
+
 .category-expand-button {
   display: grid;
   width: 34px;
