@@ -396,7 +396,7 @@ function renderCategories() {
   function makeCategoryNode(category) {
     const children = byParent.get(category.id) || [];
     const node = document.createElement("div");
-    node.className = "category-tree-node";
+    node.className = `category-tree-node${children.length ? " has-children" : ""}`;
     const button = document.createElement("button");
     const key = category.id || category.key;
     button.className = "category-button";

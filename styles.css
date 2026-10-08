@@ -412,13 +412,17 @@ h1 {
 .category-tree-node {
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(0, 1fr) 34px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: 6px;
 }
 
+.category-tree-node.has-children {
+  grid-template-columns: minmax(0, 1fr) 34px;
+}
+
 .category-tree-node > .category-button {
-  grid-column: 1;
+  grid-column: 1 / -1;
   width: 100%;
   text-align: start;
 }
@@ -1228,7 +1232,7 @@ body.dark .category-scroll-button:not(:disabled):hover {
     box-shadow: 0 4px 11px rgb(21 63 56 / 15%);
   }
 
-  .category-tree-node {
+  .category-tree-node.has-children {
     grid-template-columns: minmax(0, 1fr) 32px;
     gap: 5px;
   }
