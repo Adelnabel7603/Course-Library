@@ -1,4 +1,4 @@
-const CACHE_NAME = "course-library-v6";
+const CACHE_NAME = "course-library-v7";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -83,8 +83,9 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("push", (event) => {
   const payload = event.data ? event.data.json() : {};
+  const title = payload.title || "مكتبة المقررات";
   event.waitUntil(
-    self.registration.showNotification(payload.title || "مكتبة المقررات", {
+    self.registration.showNotification(title, {
       body: payload.body || "يوجد تحديث جديد في المكتبة.",
       icon: new URL("./app-icon-192.png", self.registration.scope).href,
       badge: new URL("./favicon.svg", self.registration.scope).href,

@@ -1,42 +1,79 @@
-import { requireSupabase } from "./supabase.js";
+async function getClient() {
+  const { requireSupabase } = await import("./supabase.js");
+  return requireSupabase();
+}
 
 export async function getPublicLibrary() {
-  const client = requireSupabase();
-  const [{ data: categories, error: categoriesError }, { data: files, error: filesError }] =
-    await Promise.all([
-      client.from("categories").select("*").order("position"),
+  const client = await getClient();
+  const [
+    { data: categories, error: categoriesError },
+    { data: files, error: filesError },
+    notificationsWithImage,
+  ] = await Promise.all([
+      client.from("categories").select("id, name_ar, name_en, parent_id, is_active, is_coming_soon, position").eq("is_active", true).order("position"),
       client
         .from("files")
         .select("*, categories(id, name_ar, name_en, parent_id, is_coming_soon)")
         .eq("is_published", true)
         .order("position")
         .order("created_at", { ascending: false }),
+      client
+        .from("notifications")
+        .select("id, title, body, type, file_id, image_path, attachments, created_at")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
   if (categoriesError) throw categoriesError;
   if (filesError) throw filesError;
 
-  const categoriesById = new Map(categories.map((category) => [category.id, category]));
-  const categoryChainIsVisible = (category, hideComingSoon) => {
-    let current = category;
-    const visited = new Set();
-    while (current && !visited.has(current.id)) {
-      if (!current.is_active || (hideComingSoon && current.is_coming_soon)) return false;
-      visited.add(current.id);
-      if (!current.parent_id) return true;
-      current = categoriesById.get(current.parent_id);
+  let notifications = notificationsWithImage.data;
+  if (notificationsWithImage.error) {
+    if (notificationsWithImage.error.code !== "42703") {
+      throw notificationsWithImage.error;
     }
-    return false;
-  };
-  const publicCategories = categories.filter((category) =>
-    categoryChainIsVisible(category, false));
-  const visibleCategories = publicCategories.filter((category) =>
-    categoryChainIsVisible(category, true));
+    const legacyNotificationsWithImage = await client
+      .from("notifications")
+      .select("id, title, body, type, file_id, image_path, created_at")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (!legacyNotificationsWithImage.error) {
+      notifications = legacyNotificationsWithImage.data.map((notification) => ({
+        ...notification,
+        attachments: [],
+      }));
+    } else if (legacyNotificationsWithImage.error.code === "42703") {
+      const legacyNotifications = await client
+        .from("notifications")
+        .select("id, title, body, type, file_id, created_at")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (legacyNotifications.error) throw legacyNotifications.error;
+      notifications = legacyNotifications.data.map((notification) => ({
+        ...notification,
+        image_path: null,
+        attachments: [],
+      }));
+    } else {
+      throw legacyNotificationsWithImage.error;
+    }
+  }
+
+  const visibleCategories = categories.filter((category) => !category.is_coming_soon);
   const categoryIds = new Set(visibleCategories.map((category) => category.id));
   const visibleFiles = files.filter((file) => categoryIds.has(file.category_id));
-  const paths = [...new Set(visibleFiles.flatMap((file) =>
-    [file.object_path, file.cover_path].filter(Boolean),
-  ))];
+  const attachmentPaths = notifications.flatMap((notification) =>
+    (Array.isArray(notification.attachments) ? notification.attachments : [])
+      .map((attachment) => attachment.object_path)
+      .filter(Boolean),
+  );
+  const paths = [...new Set([
+    ...visibleFiles.flatMap((file) => [file.object_path, file.cover_path].filter(Boolean)),
+    ...attachmentPaths,
+  ])];
   const signedUrls = new Map();
   if (paths.length) {
     const { data, error } = await client.storage
@@ -48,8 +85,33 @@ export async function getPublicLibrary() {
       signedUrls.set(item.path, item.signedUrl);
     }
   }
+  const notificationImageUrls = new Map(
+    notifications
+      .filter((notification) => notification.image_path)
+      .map((notification) => [
+        notification.image_path,
+        client.storage.from("notification-images")
+          .getPublicUrl(notification.image_path).data.publicUrl,
+      ]),
+  );
   return {
-    categories: publicCategories,
+    categories,
+    notifications: notifications.map((notification) => ({
+      ...notification,
+      imageUrl: notification.image_path
+        ? notificationImageUrls.get(notification.image_path)
+        : null,
+      attachments: (Array.isArray(notification.attachments)
+        ? notification.attachments
+        : []).map((attachment) => ({
+          ...attachment,
+          url: signedUrls.get(attachment.object_path),
+          downloadUrl: createDownloadUrl(
+            signedUrls.get(attachment.object_path),
+            attachment.name,
+          ),
+        })),
+    })),
     files: visibleFiles.map((file) => ({
       ...file,
       category: file.categories.name_ar,
@@ -61,25 +123,6 @@ export async function getPublicLibrary() {
   };
 }
 
-export async function getPublicNotifications() {
-  const client = requireSupabase();
-  const { data, error } = await client
-    .from("notifications")
-    .select("id, title, body, type, file_id, image_path, created_at")
-    .eq("is_active", true)
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) throw error;
-
-  return data.map((notification) => ({
-    ...notification,
-    imageUrl: notification.image_path
-      ? client.storage.from("notification-images")
-        .getPublicUrl(notification.image_path).data.publicUrl
-      : null,
-  }));
-}
-
 function createDownloadUrl(signedUrl, fileName) {
   if (!signedUrl) return signedUrl;
   const url = new URL(signedUrl);
@@ -87,8 +130,8 @@ function createDownloadUrl(signedUrl, fileName) {
   return url.href;
 }
 
-export function subscribeToLibrary(onChange) {
-  const client = requireSupabase();
+export async function subscribeToLibrary(onChange) {
+  const client = await getClient();
   return client
     .channel("public-library")
     .on("postgres_changes", { event: "*", schema: "public", table: "files" }, onChange)
@@ -98,7 +141,8 @@ export function subscribeToLibrary(onChange) {
 }
 
 export async function registerPushSubscription(subscription) {
-  const { data, error } = await requireSupabase().functions.invoke("register-push", {
+  const client = await getClient();
+  const { data, error } = await client.functions.invoke("register-push", {
     body: { subscription },
   });
   if (error) throw error;
@@ -106,7 +150,8 @@ export async function registerPushSubscription(subscription) {
 }
 
 export async function recordDownload(fileId) {
-  const { error } = await requireSupabase().rpc("increment_file_downloads", {
+  const client = await getClient();
+  const { error } = await client.rpc("increment_file_downloads", {
     file_id: fileId,
   });
   if (error) throw error;

@@ -17,8 +17,7 @@ create table if not exists public.categories (
 );
 
 alter table public.categories
-  add column if not exists parent_id uuid
-  references public.categories(id) on delete set null;
+  add column if not exists parent_id uuid references public.categories(id) on delete set null;
 
 create index if not exists categories_parent_position_idx
   on public.categories (parent_id, position);
@@ -35,13 +34,47 @@ create table if not exists public.files (
   position integer not null default 0,
   downloads bigint not null default 0 check (downloads >= 0),
   is_published boolean not null default true,
+  is_new boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+alter table public.files
+  add column if not exists is_new boolean not null default false;
+
 create index if not exists files_category_position_idx
   on public.files (category_id, position, created_at desc);
 create index if not exists files_publication_idx on public.files (is_published);
+
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  title text not null check (length(trim(title)) > 0),
+  body text not null default '',
+  type text not null default 'announcement'
+    check (type in ('file', 'announcement')),
+  file_id uuid references public.files(id) on delete set null,
+  image_path text,
+  attachments jsonb not null default '[]'::jsonb,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+alter table public.notifications
+  add column if not exists image_path text;
+alter table public.notifications
+  add column if not exists attachments jsonb not null default '[]'::jsonb;
+
+create index if not exists notifications_active_created_idx
+  on public.notifications (is_active, created_at desc);
+
+create table if not exists public.push_subscriptions (
+  endpoint text primary key check (endpoint like 'https://%'),
+  p256dh text not null,
+  auth_secret text not null,
+  user_agent text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
 create or replace function public.set_file_updated_at()
 returns trigger
@@ -91,10 +124,13 @@ grant execute on function public.is_library_admin() to anon, authenticated;
 alter table public.admins enable row level security;
 alter table public.categories enable row level security;
 alter table public.files enable row level security;
+alter table public.notifications enable row level security;
+alter table public.push_subscriptions enable row level security;
 
 grant select on public.admins to authenticated;
-grant select, insert, update, delete on public.categories, public.files to authenticated;
-grant select on public.categories, public.files to anon;
+grant select, insert, update, delete on public.categories, public.files, public.notifications to authenticated;
+grant select on public.categories, public.files, public.notifications to anon;
+revoke all on public.push_subscriptions from anon, authenticated;
 
 drop policy if exists "Admins can read their own record" on public.admins;
 create policy "Admins can read their own record" on public.admins
@@ -116,6 +152,14 @@ create policy "Admins can manage files" on public.files
   for all to authenticated using (public.is_library_admin())
   with check (public.is_library_admin());
 
+drop policy if exists "Public can read active notifications" on public.notifications;
+create policy "Public can read active notifications" on public.notifications
+  for select to anon, authenticated using (is_active);
+drop policy if exists "Admins can manage notifications" on public.notifications;
+create policy "Admins can manage notifications" on public.notifications
+  for all to authenticated using (public.is_library_admin())
+  with check (public.is_library_admin());
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'library-files',
@@ -134,6 +178,18 @@ on conflict (id) do update set public = excluded.public,
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'notification-images',
+  'notification-images',
+  true,
+  10485760,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+on conflict (id) do update set public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
 drop policy if exists "Public can read library files" on storage.objects;
 drop policy if exists "Public can read published assets" on storage.objects;
 create policy "Public can read published assets" on storage.objects
@@ -145,6 +201,13 @@ create policy "Public can read published assets" on storage.objects
         select 1 from public.files
         where is_published = true
           and (object_path = storage.objects.name or cover_path = storage.objects.name)
+      )
+      or exists (
+        select 1
+        from public.notifications,
+             lateral jsonb_array_elements(public.notifications.attachments) as attachment(item)
+        where public.notifications.is_active = true
+          and attachment.item->>'object_path' = storage.objects.name
       )
     )
   );
@@ -162,6 +225,20 @@ drop policy if exists "Admins can delete library files" on storage.objects;
 create policy "Admins can delete library files" on storage.objects
   for delete to authenticated using (
     bucket_id = 'library-files' and public.is_library_admin()
+  );
+
+drop policy if exists "Public can view notification images" on storage.objects;
+create policy "Public can view notification images" on storage.objects
+  for select to anon, authenticated using (bucket_id = 'notification-images');
+drop policy if exists "Admins can upload notification images" on storage.objects;
+create policy "Admins can upload notification images" on storage.objects
+  for insert to authenticated with check (
+    bucket_id = 'notification-images' and public.is_library_admin()
+  );
+drop policy if exists "Admins can delete notification images" on storage.objects;
+create policy "Admins can delete notification images" on storage.objects
+  for delete to authenticated using (
+    bucket_id = 'notification-images' and public.is_library_admin()
   );
 
 insert into public.categories (name_ar, name_en, is_coming_soon, position)
@@ -187,6 +264,12 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'categories'
   ) then
     alter publication supabase_realtime add table public.categories;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
   end if;
 end
 $$;

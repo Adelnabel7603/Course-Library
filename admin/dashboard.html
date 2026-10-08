@@ -59,7 +59,7 @@
           <div class="category-form-heading">
             <div>
               <h3>إضافة تصنيف جديد</h3>
-              <p class="muted">أدخل اسم المادة ليظهر كفلتر في المكتبة.</p>
+              <p class="muted">أدخل اسم المادة، ويمكنك وضعها داخل تصنيف موجود.</p>
             </div>
             <span class="category-form-spark" aria-hidden="true">＋</span>
           </div>
@@ -111,20 +111,20 @@
                 name="file"
                 type="file"
                 multiple
-                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.txt,image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
               />
             </label>
             <ul id="file-selection" class="file-selection" aria-live="polite"></ul>
           </div>
-          <div id="upload-editors" class="upload-editors wide" hidden></div>
-          <label class="cover-picker wide file-default-field">
+          <div id="upload-editors" class="upload-editors wide"></div>
+          <label class="cover-picker wide">
             <span class="cover-picker-icon" aria-hidden="true">▧</span>
             <span class="cover-picker-copy"><strong>صورة غلاف اختيارية</strong><small id="cover-file-name">تُستخدم مع ملف واحد فقط</small></span>
             <span class="cover-picker-button">اختيار صورة</span>
             <input name="cover" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
           </label>
           <label>الترتيب<input name="position" type="number" value="0" /></label>
-          <label class="check-label file-default-field"><input name="is_published" type="checkbox" checked /> ظاهر للزوار</label>
+          <label class="check-label"><input name="is_published" type="checkbox" checked /> ظاهر للزوار</label>
           <div class="form-actions wide">
             <button class="primary-button" type="submit">حفظ الملف</button>
             <button class="secondary-button" id="cancel-edit" type="button" hidden>إلغاء التعديل</button>
@@ -136,20 +136,33 @@
 
       <section class="panel">
         <div class="panel-heading">
-          <div><h2>إعلان أو تعليمات للزوار</h2><p class="muted">يظهر الإعلان في جرس الإشعارات، ويصل للأجهزة التي فعّلت الإشعارات.</p></div>
+          <div><h2>إعلان أو تعليمات للزوار</h2><p class="muted">يظهر النص في جرس الإشعارات. تنبيه الجهاز يحتاج إكمال إعداد إشعارات النظام.</p></div>
         </div>
         <form id="notification-form" class="notification-form">
+          <input name="id" type="hidden" />
           <label>عنوان الإشعار<input name="title" maxlength="180" placeholder="مثال: تعليمات امتحان منتصف الفصل" required /></label>
           <label>نص الإشعار أو التعليق على الصورة<textarea name="body" rows="4" maxlength="2000" placeholder="اكتب الإعلان أو التعليق الذي سيظهر مع الصورة..." required></textarea></label>
           <label class="notification-image-picker">
             <span>صورة مع الإشعار <small>اختياري · PNG أو JPG أو WebP أو GIF · حتى 10 MB</small></span>
             <input id="notification-image" name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
           </label>
+          <button class="secondary-button notification-remove-image" id="notification-remove-image" type="button" hidden>إزالة الصورة الحالية</button>
           <div class="notification-image-preview-wrap" id="notification-image-preview-wrap" hidden>
             <img id="notification-image-preview" alt="معاينة صورة الإشعار" />
             <span id="notification-image-name"></span>
           </div>
-          <button class="primary-button" type="submit">نشر الإشعار</button>
+          <div class="upload-field notification-attachments">
+            <span class="upload-label">ملفات مرفقة <small>PDF ومستندات وصور وفيديو · ملفات متعددة · حتى 1 GB لكل ملف</small></span>
+            <input id="notification-attachments" type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.txt,image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" />
+            <ul id="notification-attachment-selection" class="file-selection" aria-live="polite"></ul>
+            <ul id="notification-existing-attachments" class="notification-existing-attachments"></ul>
+          </div>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">نشر الإشعار</button>
+            <button class="secondary-button" id="cancel-notification-edit" type="button" hidden>إلغاء التعديل</button>
+          </div>
+          <progress id="notification-upload-progress" class="upload-progress" max="1" value="0" hidden></progress>
+          <p id="notification-upload-status" class="upload-status" aria-live="polite" hidden></p>
         </form>
         <div class="admin-notification-history">
           <h3>الإشعارات المنشورة</h3>

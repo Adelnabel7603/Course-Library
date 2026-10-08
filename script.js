@@ -1,19 +1,19 @@
 import { legacyFiles, legacyCategories } from "./services/legacy-catalog.js";
-import { isSupabaseConfigured } from "./services/supabase.js";
 import {
   getPublicLibrary,
-  getPublicNotifications,
   registerPushSubscription,
   recordDownload,
   subscribeToLibrary,
 } from "./services/library.js";
-import { supabaseConfig } from "./config.js";
+import { isSupabaseConfigured, supabaseConfig } from "./config.js";
 
 const files = legacyFiles;
 
 const translations = {
   ar: {
     brand: "مكتبة المقررات",
+    updateAvailable: "تم تحديث التطبيق. حدّث الصفحة لتشغيل النسخة الجديدة.",
+    refreshApp: "تحديث الآن",
     notifications: "الإشعارات",
     markRead: "تحديد كمقروءة",
     enableNotifications: "تفعيل إشعارات الجهاز",
@@ -23,15 +23,11 @@ const translations = {
     pushEnableSuccess: "تم تفعيل إشعارات الجهاز.",
     pushPermissionDenied: "لم تسمح بإشعارات الجهاز.",
     pushUnavailable: "تعذر تفعيل إشعارات الجهاز على هذا المتصفح.",
-    pushSetupMissing: "إشعارات الجهاز غير مهيأة؛ ستظهر التحديثات في الجرس.",
+    pushSetupMissing: "إشعارات الجهاز غير مهيأة بعد؛ ستظهر التحديثات في الجرس.",
     admin: "الإدارة",
     install: "تثبيت التطبيق",
-    installing: "جارٍ التثبيت...",
-    installAccepted: "وافق المتصفح على التثبيت، جارٍ إكماله...",
-    installCancelled: "تم إلغاء التثبيت.",
     installSuccess: "تم تثبيت التطبيق.",
     installUnavailable: "افتح قائمة المتصفح واختر «إضافة إلى الشاشة الرئيسية» لتثبيت التطبيق.",
-    installIOS: "اضغط «مشاركة» في Safari، ثم اختر «إضافة إلى الشاشة الرئيسية».",
     share: "مشاركة",
     darkMode: "الوضع الليلي",
     lightMode: "الوضع النهاري",
@@ -39,7 +35,7 @@ const translations = {
     eyebrow: "ملفات المحاضرات والمراجعة",
     headline: "كل مادتك، في مكان واحد.",
     description: "تصفّح الملفات وافتحها أو نزّلها بسهولة.",
-    pdfFiles: "ملف PDF",
+    pdfFiles: "ملف",
     navHome: "الرئيسية",
     navSearch: "بحث",
     navFiles: "الملفات",
@@ -48,12 +44,15 @@ const translations = {
     changeLanguage: "تغيير اللغة",
     scrollCategoriesLeft: "تمرير التصنيفات إلى اليسار",
     scrollCategoriesRight: "تمرير التصنيفات إلى اليمين",
+    installIOS: "اضغط «مشاركة» في Safari، ثم اختر «إضافة إلى الشاشة الرئيسية».",
     all: "الكل",
     searchPlaceholder: "ابحث باسم الملف...",
     filesHeading: "الملفات",
     count: (count) => `${count} ملف`,
     open: "فتح",
     download: "تنزيل",
+    newFile: "جديد",
+    attachments: "الملفات المرفقة",
     downloading: "جارٍ تنزيل الملف",
     downloadComplete: "اكتمل التنزيل",
     downloadFailed: "تعذر تنزيل الملف",
@@ -76,6 +75,8 @@ const translations = {
   },
   en: {
     brand: "Course Library",
+    updateAvailable: "The app was updated. Refresh to load the new version.",
+    refreshApp: "Refresh now",
     notifications: "Notifications",
     markRead: "Mark all as read",
     enableNotifications: "Enable device notifications",
@@ -85,15 +86,11 @@ const translations = {
     pushEnableSuccess: "Device notifications enabled.",
     pushPermissionDenied: "Device notifications were not allowed.",
     pushUnavailable: "Device notifications are unavailable in this browser.",
-    pushSetupMissing: "Device notifications are not configured; updates will appear in the bell.",
+    pushSetupMissing: "Device notifications are not configured yet; updates will appear in the bell.",
     admin: "Admin",
     install: "Install app",
-    installing: "Installing...",
-    installAccepted: "Installation accepted. Finishing up...",
-    installCancelled: "Installation cancelled.",
     installSuccess: "The app has been installed.",
     installUnavailable: "Open your browser menu and choose “Install app” or “Add to Home Screen”.",
-    installIOS: "In Safari, tap Share, then choose “Add to Home Screen”.",
     share: "Share",
     darkMode: "Dark mode",
     lightMode: "Light mode",
@@ -101,7 +98,7 @@ const translations = {
     eyebrow: "Lecture notes and revision files",
     headline: "All your courses, in one place.",
     description: "Browse, open, and download your files with ease.",
-    pdfFiles: "PDF files",
+    pdfFiles: "files",
     navHome: "Home",
     navSearch: "Search",
     navFiles: "Files",
@@ -110,12 +107,15 @@ const translations = {
     changeLanguage: "Change language",
     scrollCategoriesLeft: "Scroll categories left",
     scrollCategoriesRight: "Scroll categories right",
+    installIOS: "In Safari, tap Share, then choose “Add to Home Screen”.",
     all: "All",
     searchPlaceholder: "Search files...",
     filesHeading: "Files",
     count: (count) => `${count} files`,
     open: "Open",
     download: "Download",
+    newFile: "New",
+    attachments: "Attachments",
     downloading: "Downloading file",
     downloadComplete: "Download complete",
     downloadFailed: "Download failed",
@@ -160,8 +160,9 @@ const markNotificationsRead = document.querySelector("#mark-notifications-read")
 const enablePushButton = document.querySelector("#enable-push-button");
 const shareButton = document.querySelector("#share-button");
 const installButton = document.querySelector("#install-button");
-const installProgress = document.querySelector("#install-progress");
 const toast = document.querySelector("#toast");
+const appUpdatePrompt = document.querySelector("#app-update-prompt");
+const refreshAppButton = document.querySelector("#refresh-app-button");
 const downloadProgress = document.querySelector("#download-progress");
 const downloadProgressTitle = document.querySelector("#download-progress-title");
 const downloadProgressDetail = document.querySelector("#download-progress-detail");
@@ -174,11 +175,14 @@ let activeCategory = "all";
 let language = "ar";
 let toastTimeout;
 let installPrompt;
-let installCompletionTimeout;
 let activeDownload;
 let notifications = [];
 let notificationAudioContext;
 let notificationsLoaded = false;
+const expandedCategoryIds = new Set();
+const collapsedFileGroupIds = new Set();
+const localFeaturePreview = window.location.protocol === "file:" &&
+  new URLSearchParams(window.location.search).get("preview") === "features";
 const notificationReadKey = "course-library-read-notifications-v1";
 const readNotificationIds = new Set(loadReadNotificationIds());
 
@@ -202,8 +206,8 @@ function loadReadNotificationIds() {
 function saveReadNotificationIds() {
   try {
     localStorage.setItem(notificationReadKey, JSON.stringify([...readNotificationIds]));
-  } catch (error) {
-    console.warn("Notification read state could not be saved.", error);
+  } catch {
+    return;
   }
 }
 
@@ -230,10 +234,6 @@ function setLanguage(nextLanguage) {
   document.querySelectorAll("[data-aria-label]").forEach((element) => {
     element.setAttribute("aria-label", currentText()[element.dataset.ariaLabel]);
   });
-  installButton.setAttribute(
-    "aria-label",
-    installButton.disabled ? currentText().installing : currentText().install,
-  );
 
   searchInput.placeholder = currentText().searchPlaceholder;
   searchInput.setAttribute(
@@ -256,19 +256,23 @@ function renderNotifications() {
   notificationEmpty.hidden = notifications.length > 0;
   notificationList.replaceChildren(...notifications.map((notification) => {
     const item = document.createElement("li");
-    const button = document.createElement("button");
-    button.className = `notification-item${readNotificationIds.has(notification.id) ? "" : " is-unread"}`;
-    button.type = "button";
-    button.dataset.notificationId = notification.id;
+    const content = document.createElement("div");
+    content.className = `notification-item${readNotificationIds.has(notification.id) ? "" : " is-unread"}`;
+    content.dataset.notificationId = notification.id;
+    const openButton = document.createElement("button");
+    openButton.className = "notification-item-open";
+    openButton.type = "button";
     const title = document.createElement("span");
     title.className = "notification-item-title";
     title.textContent = notification.title;
-    button.append(title);
+    openButton.append(title);
+    openButton.addEventListener("click", () => openNotification(notification));
+    content.append(openButton);
     if (notification.body) {
       const body = document.createElement("span");
       body.className = "notification-item-body";
       body.textContent = notification.body;
-      button.append(body);
+      content.append(body);
     }
     if (notification.imageUrl) {
       const image = document.createElement("img");
@@ -276,7 +280,28 @@ function renderNotifications() {
       image.src = notification.imageUrl;
       image.alt = notification.title;
       image.loading = "lazy";
-      button.append(image);
+      content.append(image);
+    }
+    if (notification.attachments?.length) {
+      const attachmentList = document.createElement("ul");
+      attachmentList.className = "notification-attachments";
+      for (const attachment of notification.attachments) {
+        if (!attachment.url) continue;
+        const attachmentItem = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = attachment.url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = attachment.name;
+        attachmentItem.append(link);
+        attachmentList.append(attachmentItem);
+      }
+      if (attachmentList.childElementCount) {
+        const label = document.createElement("span");
+        label.className = "notification-attachments-label";
+        label.textContent = currentText().attachments;
+        content.append(label, attachmentList);
+      }
     }
     const time = document.createElement("time");
     time.dateTime = notification.created_at;
@@ -284,34 +309,39 @@ function renderNotifications() {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(new Date(notification.created_at));
-    button.append(time);
-    button.addEventListener("click", () => openNotification(notification));
-    item.append(button);
+    content.append(time);
+    item.append(content);
     return item;
   }));
   updatePushButton();
 }
 
 async function updatePushButton() {
-  const supported = "Notification" in window && "serviceWorker" in navigator &&
-    "PushManager" in window && Boolean(supabaseConfig.vapidPublicKey);
-  enablePushButton.hidden = !supported || Notification.permission === "denied";
+  const pushSupported = "Notification" in window &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    Boolean(supabaseConfig.vapidPublicKey);
+  enablePushButton.hidden = !pushSupported;
   enablePushButton.disabled = false;
-  if (!supported || Notification.permission !== "granted") {
-    enablePushButton.textContent = currentText().enableNotifications;
+  if (!pushSupported) return;
+  if (Notification.permission === "denied") {
+    enablePushButton.hidden = true;
     return;
   }
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    if (await registration.pushManager.getSubscription()) {
-      enablePushButton.textContent = currentText().pushEnabled;
-      enablePushButton.disabled = true;
-      return;
+  if (Notification.permission === "granted") {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        enablePushButton.textContent = currentText().pushEnabled;
+        enablePushButton.disabled = true;
+        return;
+      }
+    } catch (error) {
+      showToast(error.message || currentText().pushUnavailable);
     }
-    enablePushButton.textContent = currentText().enableNotifications;
-  } catch (error) {
-    showToast(error.message || currentText().pushUnavailable);
   }
+  enablePushButton.textContent = currentText().enableNotifications;
 }
 
 function markNotificationRead(notificationId) {
@@ -325,6 +355,11 @@ function openNotification(notification) {
   const file = availableFiles.find((item) => item.id === notification.file_id);
   if (!file) return;
   activeCategory = file.category_id;
+  let parentId = categories.find((category) => category.id === activeCategory)?.parent_id;
+  while (parentId) {
+    expandedCategoryIds.add(parentId);
+    parentId = categories.find((category) => category.id === parentId)?.parent_id;
+  }
   searchInput.value = "";
   renderCategories();
   renderFiles();
@@ -348,135 +383,133 @@ function decodeVapidPublicKey(key) {
   return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
 }
 
-function unlockNotificationSound() {
-  if (!("AudioContext" in window)) return;
-  notificationAudioContext ||= new AudioContext();
-  if (notificationAudioContext.state === "suspended") {
-    notificationAudioContext.resume().catch((error) => {
-      console.warn("Notification sound could not be enabled by this browser.", error);
-    });
-  }
-}
-
-function playNotificationSound() {
-  if (!notificationAudioContext || notificationAudioContext.state !== "running") return;
-  const context = notificationAudioContext;
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  const now = context.currentTime;
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(880, now);
-  oscillator.frequency.setValueAtTime(1174.66, now + 0.12);
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.12, now + 0.025);
-  gain.gain.setValueAtTime(0.12, now + 0.13);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
-  oscillator.connect(gain);
-  gain.connect(context.destination);
-  oscillator.start(now);
-  oscillator.stop(now + 0.33);
-}
-
 function renderCategories() {
   const text = currentText();
-  const categoryButtons = [
-    { key: "all", label: text.all, available: true },
-    ...categories.map((category) => ({
-      key: category.id || category.key,
-      label: categoryLabel(category),
-      available: isCategoryAvailable(category),
-    })),
-  ];
+  const byParent = new Map();
+  for (const category of categories) {
+    const parentId = category.parent_id || "";
+    const siblings = byParent.get(parentId) || [];
+    siblings.push(category);
+    byParent.set(parentId, siblings);
+  }
 
-  categoryList.replaceChildren(
-    ...categoryButtons.map(({ key, label, available }) => {
-      const button = document.createElement("button");
-      button.className = "category-button";
-      button.type = "button";
-      button.disabled = !available;
-      button.setAttribute("aria-pressed", String(activeCategory === key));
-      const name = document.createElement("span");
-      name.textContent = label;
-      button.append(name);
-      if (!available) {
-        const status = document.createElement("span");
-        status.className = "coming-soon";
-        status.textContent = currentText().comingSoon;
-        button.append(status);
-      } else {
-        button.addEventListener("click", () => {
-          activeCategory = key;
-          renderCategories();
-          renderFiles();
-        });
+  function makeCategoryNode(category) {
+    const children = byParent.get(category.id) || [];
+    const node = document.createElement("div");
+    node.className = "category-tree-node";
+    const button = document.createElement("button");
+    const key = category.id || category.key;
+    button.className = "category-button";
+    button.type = "button";
+    button.disabled = !category.available;
+    button.setAttribute("aria-pressed", String(activeCategory === key));
+    const name = document.createElement("span");
+    name.textContent = language === "en" && category.name_en
+      ? category.name_en
+      : textCategoryName(category);
+    button.append(name);
+    if (!category.available) {
+      const status = document.createElement("span");
+      status.className = "coming-soon";
+      status.textContent = text.comingSoon;
+      button.append(status);
+    } else {
+      button.addEventListener("click", () => {
+        activeCategory = key;
+        renderCategories();
+        renderFiles();
+      });
+    }
+    node.append(button);
+
+    if (children.length) {
+      const expanded = expandedCategoryIds.has(category.id);
+      const toggle = document.createElement("button");
+      toggle.className = "category-expand-button";
+      toggle.type = "button";
+      toggle.textContent = expanded ? "⌄" : "›";
+      toggle.setAttribute("aria-expanded", String(expanded));
+      toggle.setAttribute(
+        "aria-label",
+        `${expanded ? "إخفاء" : "إظهار"} تصنيفات ${textCategoryName(category)}`,
+      );
+      toggle.addEventListener("click", () => {
+        if (expandedCategoryIds.has(category.id)) {
+          expandedCategoryIds.delete(category.id);
+        } else {
+          expandedCategoryIds.add(category.id);
+        }
+        renderCategories();
+      });
+      node.append(toggle);
+      if (expanded) {
+        const childList = document.createElement("div");
+        childList.className = "category-tree-children";
+        childList.append(...children.map(makeCategoryNode));
+        node.append(childList);
       }
-      return button;
-    }),
-  );
+    }
+    return node;
+  }
+
+  const allButton = document.createElement("button");
+  allButton.className = "category-button";
+  allButton.type = "button";
+  allButton.textContent = text.all;
+  allButton.setAttribute("aria-pressed", String(activeCategory === "all"));
+  allButton.addEventListener("click", () => {
+    activeCategory = "all";
+    renderCategories();
+    renderFiles();
+  });
+  const roots = byParent.get("") || [];
+  categoryList.replaceChildren(allButton, ...roots.map(makeCategoryNode));
   updateCategoryScrollControls();
 }
 
-function categoryLabel(category) {
+function getCategoryLabel(category) {
   const names = [];
-  const visited = new Set();
   let current = category;
-  while (current && (!current.id || !visited.has(current.id))) {
-    if (current.id) visited.add(current.id);
-    names.unshift(language === "en" && current.name_en
-      ? current.name_en
-      : textCategoryName(current));
-    if (!current.parent_id) break;
+  while (current) {
+    names.unshift(
+      language === "en" && current.name_en
+        ? current.name_en
+        : textCategoryName(current),
+    );
     current = categories.find((item) => item.id === current.parent_id);
   }
   return names.join(" / ");
 }
 
 function textCategoryName(category) {
-  return currentText().categories[category.key]
-    || category.name_ar
-    || category.key;
-}
-
-function isCategoryAvailable(category) {
-  const visited = new Set();
-  let current = category;
-  while (current && (!current.id || !visited.has(current.id))) {
-    if (!current.available || current.is_coming_soon) return false;
-    if (current.id) visited.add(current.id);
-    if (!current.parent_id) break;
-    current = categories.find((item) => item.id === current.parent_id);
-  }
-  return true;
-}
-
-function getCategoryAndDescendantIds(categoryId) {
-  const ids = new Set([categoryId]);
-  let foundDescendant = true;
-  while (foundDescendant) {
-    foundDescendant = false;
-    for (const category of categories) {
-      if (category.parent_id && ids.has(category.parent_id) && !ids.has(category.id)) {
-        ids.add(category.id);
-        foundDescendant = true;
-      }
-    }
-  }
-  return ids;
+  return currentText().categories[category.key] || category.name_ar || category.key;
 }
 
 function updateCategoryScrollControls() {
   const rail = categoryList.getBoundingClientRect();
   const items = [...categoryList.children];
-  const hasHiddenLeft = items.some((item) =>
-    item.getBoundingClientRect().right <= rail.left + 1);
-  const hasHiddenRight = items.some((item) =>
-    item.getBoundingClientRect().left >= rail.right - 1);
-  const hasOverflow = hasHiddenLeft || hasHiddenRight;
+  const visibleItems = items.filter((item) => {
+    const rect = item.getBoundingClientRect();
+    return rect.right > rail.left + 1 && rect.left < rail.right - 1;
+  });
+  const leftmost = visibleItems.reduce((left, item) =>
+    !left || item.getBoundingClientRect().left < left.getBoundingClientRect().left
+      ? item
+      : left, null);
+  const rightmost = visibleItems.reduce((right, item) =>
+    !right || item.getBoundingClientRect().right > right.getBoundingClientRect().right
+      ? item
+      : right, null);
+  const hasHiddenLeft = items.some((item) => item.getBoundingClientRect().right <= rail.left + 1);
+  const hasHiddenRight = items.some((item) => item.getBoundingClientRect().left >= rail.right - 1);
 
+  const hasOverflow = hasHiddenLeft || hasHiddenRight;
   categoryScrollLeft.hidden = !hasOverflow;
   categoryScrollRight.hidden = !hasOverflow;
   categoryScrollLeft.disabled = !hasHiddenLeft;
   categoryScrollRight.disabled = !hasHiddenRight;
+  categoryScrollLeft.classList.toggle("is-active", Boolean(leftmost && hasHiddenLeft));
+  categoryScrollRight.classList.toggle("is-active", Boolean(rightmost && hasHiddenRight));
 }
 
 function scrollCategoryRail(direction) {
@@ -512,116 +545,202 @@ function fileUrl(fileName) {
 function renderFiles() {
   const text = currentText();
   const query = searchInput.value.trim().toLocaleLowerCase();
-  const selectedCategoryIds = activeCategory === "all"
-    ? null
-    : getCategoryAndDescendantIds(activeCategory);
+  const selectedCategoryIds = new Set();
+  if (activeCategory !== "all" && cloudLibraryEnabled) {
+    selectedCategoryIds.add(activeCategory);
+    let addedCategory;
+    do {
+      addedCategory = false;
+      for (const category of categories) {
+        if (category.parent_id && selectedCategoryIds.has(category.parent_id) &&
+            !selectedCategoryIds.has(category.id)) {
+          selectedCategoryIds.add(category.id);
+          addedCategory = true;
+        }
+      }
+    } while (addedCategory);
+  }
   const visibleFiles = availableFiles.filter((file) => {
     const matchesCategory =
-      !selectedCategoryIds ||
+      activeCategory === "all" ||
       (cloudLibraryEnabled
         ? selectedCategoryIds.has(file.category_id)
-        : selectedCategoryIds.has(file.category));
+        : file.category === activeCategory);
     const matchesSearch = `${file.name} ${file.description || ""}`
       .toLocaleLowerCase()
       .includes(query);
     return matchesCategory && matchesSearch;
   });
+  function createFileCard(file) {
+    const card = document.createElement("article");
+    card.className = "file-card";
+    if (file.id) card.dataset.fileId = file.id;
 
-  fileGrid.replaceChildren(
-    ...visibleFiles.map((file) => {
-      const card = document.createElement("article");
-      card.className = "file-card";
+    const top = document.createElement("div");
+    top.className = "file-card-top";
+    const icon = document.createElement("span");
+    const mimeType = file.mime_type || "";
+    const typeLabel = mimeType.startsWith("image/")
+      ? "IMG"
+      : mimeType.startsWith("video/")
+        ? "VIDEO"
+        : mimeType === "application/pdf" || !mimeType
+          ? "PDF"
+          : "FILE";
+    icon.className = `pdf-icon${mimeType.startsWith("video/") ? " video-icon" : ""}`;
+    icon.textContent = typeLabel;
+    icon.setAttribute("aria-hidden", "true");
 
-      const top = document.createElement("div");
-      top.className = "file-card-top";
+    const details = document.createElement("div");
+    const title = document.createElement("h3");
+    title.textContent = cloudLibraryEnabled
+      ? file.name
+      : file.name.replace(/\.pdf$/i, "");
+    if (file.is_new) {
+      const badge = document.createElement("span");
+      badge.className = "file-new-badge";
+      badge.textContent = text.newFile;
+      title.append(" ", badge);
+    }
+    const category = document.createElement("span");
+    category.className = "file-category";
+    category.textContent = cloudLibraryEnabled
+      ? getCategoryLabel(file.categories || {
+        name_ar: file.category,
+        name_en: file.categoryNameEn,
+      })
+      : text.categories[file.category] || file.category;
+    details.append(title, category);
+    top.append(icon, details);
 
-      const icon = document.createElement("span");
-      const mimeType = file.mime_type || "";
-      const typeLabel = mimeType.startsWith("image/")
-        ? "IMG"
-        : mimeType.startsWith("video/")
-          ? "VIDEO"
-          : mimeType === "application/pdf" || !mimeType
-            ? "PDF"
-            : "FILE";
-      icon.className = `pdf-icon${mimeType.startsWith("video/") ? " video-icon" : ""}`;
-      icon.textContent = typeLabel;
-      icon.setAttribute("aria-hidden", "true");
+    if (mimeType.startsWith("image/")) {
+      const image = document.createElement("img");
+      image.className = "file-preview image-preview";
+      image.src = file.url;
+      image.alt = file.name;
+      image.loading = "lazy";
+      card.append(image);
+    } else if (mimeType.startsWith("video/")) {
+      const video = document.createElement("video");
+      video.className = "file-preview video-preview";
+      video.src = file.url;
+      video.controls = true;
+      video.preload = "metadata";
+      video.playsInline = true;
+      video.setAttribute("aria-label", file.name);
+      if (file.coverUrl) video.poster = file.coverUrl;
+      card.append(video);
+    } else if (file.coverUrl) {
+      const cover = document.createElement("img");
+      cover.className = "file-cover";
+      cover.src = file.coverUrl;
+      cover.alt = "";
+      cover.loading = "lazy";
+      card.append(cover);
+    }
+    if (file.description) {
+      const description = document.createElement("p");
+      description.className = "file-description";
+      description.textContent = file.description;
+      card.append(description);
+    }
 
-      const details = document.createElement("div");
-      const title = document.createElement("h3");
-      title.textContent = cloudLibraryEnabled
-        ? file.name
-        : file.name.replace(/\.pdf$/i, "");
-      const category = document.createElement("span");
-      category.className = "file-category";
-      category.textContent = cloudLibraryEnabled
-        ? (language === "en" && file.categoryNameEn
-          ? file.categoryNameEn
-          : file.category)
-        : text.categories[file.category] || file.category;
-      details.append(title, category);
-      top.append(icon, details);
+    const actions = document.createElement("div");
+    actions.className = "file-actions";
+    const openLink = document.createElement("a");
+    openLink.className = "file-action primary";
+    openLink.href = cloudLibraryEnabled ? file.url : fileUrl(file.name);
+    openLink.target = "_blank";
+    openLink.rel = "noopener";
+    openLink.textContent = `↗ ${text.open}`;
+    openLink.setAttribute("aria-label", `${text.open}: ${file.name}`);
 
-      if (mimeType.startsWith("image/")) {
-        const image = document.createElement("img");
-        image.className = "file-preview image-preview";
-        image.src = file.url;
-        image.alt = file.name;
-        image.loading = "lazy";
-        card.append(image);
-      } else if (mimeType.startsWith("video/")) {
-        const video = document.createElement("video");
-        video.className = "file-preview video-preview";
-        video.src = file.url;
-        video.controls = true;
-        video.preload = "metadata";
-        video.playsInline = true;
-        video.setAttribute("aria-label", file.name);
-        if (file.coverUrl) video.poster = file.coverUrl;
-        card.append(video);
-      } else if (file.coverUrl) {
-        const cover = document.createElement("img");
-        cover.className = "file-cover";
-        cover.src = file.coverUrl;
-        cover.alt = "";
-        cover.loading = "lazy";
-        card.append(cover);
+    const downloadLink = document.createElement("a");
+    downloadLink.className = "file-action";
+    downloadLink.href = cloudLibraryEnabled ? file.downloadUrl : fileUrl(file.name);
+    downloadLink.download = getDownloadName(file);
+    downloadLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      downloadFile(file, downloadLink.href);
+    });
+    downloadLink.textContent = `↓ ${text.download}`;
+    downloadLink.setAttribute("aria-label", `${text.download}: ${file.name}`);
+    actions.append(openLink, downloadLink);
+    card.append(top, actions);
+    return card;
+  }
+
+  function createFileCategoryGroup(category, filesByCategory) {
+    const directFiles = filesByCategory.get(category.id) || [];
+    const childCategories = categories.filter((item) => item.parent_id === category.id);
+    const children = childCategories
+      .map((child) => createFileCategoryGroup(child, filesByCategory))
+      .filter(Boolean);
+    const total = directFiles.length + children.reduce(
+      (count, child) => count + Number(child.dataset.fileCount),
+      0,
+    );
+    if (!total) return null;
+
+    const section = document.createElement("section");
+    section.className = "file-category-group";
+    section.dataset.fileCount = String(total);
+    const collapsed = collapsedFileGroupIds.has(category.id);
+    const heading = document.createElement("button");
+    heading.className = "file-category-toggle";
+    heading.type = "button";
+    heading.setAttribute("aria-expanded", String(!collapsed));
+    const label = document.createElement("span");
+    label.textContent = language === "en" && category.name_en
+      ? category.name_en
+      : textCategoryName(category);
+    const count = document.createElement("span");
+    count.className = "file-category-count";
+    count.textContent = String(total);
+    const arrow = document.createElement("span");
+    arrow.className = "file-category-arrow";
+    arrow.textContent = collapsed ? "›" : "⌄";
+    heading.append(label, count, arrow);
+    heading.addEventListener("click", () => {
+      if (collapsedFileGroupIds.has(category.id)) {
+        collapsedFileGroupIds.delete(category.id);
+      } else {
+        collapsedFileGroupIds.add(category.id);
       }
-      if (file.description) {
-        const description = document.createElement("p");
-        description.className = "file-description";
-        description.textContent = file.description;
-        card.append(description);
+      renderFiles();
+    });
+    section.append(heading);
+
+    if (!collapsed) {
+      const contents = document.createElement("div");
+      contents.className = "file-category-contents";
+      if (directFiles.length) {
+        const cards = document.createElement("div");
+        cards.className = "category-file-grid";
+        cards.append(...directFiles.map(createFileCard));
+        contents.append(cards);
       }
+      contents.append(...children);
+      section.append(contents);
+    }
+    return section;
+  }
 
-      const actions = document.createElement("div");
-      actions.className = "file-actions";
-      const openLink = document.createElement("a");
-      openLink.className = "file-action primary";
-      openLink.href = fileUrl(file.name);
-      if (cloudLibraryEnabled) openLink.href = file.url;
-      openLink.target = "_blank";
-      openLink.rel = "noopener";
-      openLink.textContent = `↗ ${text.open}`;
-      openLink.setAttribute("aria-label", `${text.open}: ${file.name}`);
-
-      const downloadLink = document.createElement("a");
-      downloadLink.className = "file-action";
-      downloadLink.href = cloudLibraryEnabled ? file.downloadUrl : fileUrl(file.name);
-      downloadLink.download = getDownloadName(file);
-      downloadLink.addEventListener("click", (event) => {
-        event.preventDefault();
-        downloadFile(file, downloadLink.href);
-      });
-      downloadLink.textContent = `↓ ${text.download}`;
-      downloadLink.setAttribute("aria-label", `${text.download}: ${file.name}`);
-      actions.append(openLink, downloadLink);
-
-      card.append(top, actions);
-      return card;
-    }),
-  );
+  if (activeCategory === "all" && cloudLibraryEnabled) {
+    const filesByCategory = new Map();
+    for (const file of visibleFiles) {
+      const categoryFiles = filesByCategory.get(file.category_id) || [];
+      categoryFiles.push(file);
+      filesByCategory.set(file.category_id, categoryFiles);
+    }
+    const groups = categories
+      .filter((category) => !category.parent_id)
+      .map((category) => createFileCategoryGroup(category, filesByCategory))
+      .filter(Boolean);
+    fileGrid.replaceChildren(...groups);
+  } else {
+    fileGrid.replaceChildren(...visibleFiles.map(createFileCard));
+  }
 
   totalCount.textContent = String(availableFiles.length);
   resultCount.textContent = text.count(visibleFiles.length);
@@ -634,13 +753,21 @@ function renderFiles() {
 async function loadCloudLibrary() {
   const library = await getPublicLibrary();
   const previousIds = new Set(notifications.map((notification) => notification.id));
+  const newNotifications = notificationsLoaded
+    ? library.notifications.filter((notification) => !previousIds.has(notification.id))
+    : [];
   categories = library.categories.map((category) => ({
     ...category,
     key: category.name_ar,
     available: !category.is_coming_soon,
   }));
   availableFiles = library.files;
+  notifications = library.notifications;
+  notificationsLoaded = true;
   cloudLibraryEnabled = true;
+  if (newNotifications.length && document.visibilityState === "visible") {
+    playNotificationSound();
+  }
   if (
     activeCategory !== "all" &&
     !categories.some((category) => category.id === activeCategory)
@@ -649,20 +776,36 @@ async function loadCloudLibrary() {
   }
   renderCategories();
   renderFiles();
-  try {
-    const latestNotifications = await getPublicNotifications();
-    const newNotifications = notificationsLoaded
-      ? latestNotifications.filter((notification) => !previousIds.has(notification.id))
-      : [];
-    notifications = latestNotifications;
-    notificationsLoaded = true;
-    renderNotifications();
-    if (newNotifications.length && document.visibilityState === "visible") {
-      playNotificationSound();
-    }
-  } catch (error) {
-    showToast(error.message || "تعذر تحميل الإشعارات.");
+  renderNotifications();
+}
+
+function unlockNotificationSound() {
+  if (!("AudioContext" in window)) return;
+  notificationAudioContext ||= new AudioContext();
+  if (notificationAudioContext.state === "suspended") {
+    notificationAudioContext.resume().catch((error) => {
+      console.warn("Notification sound could not be enabled by this browser.", error);
+    });
   }
+}
+
+function playNotificationSound() {
+  if (!notificationAudioContext || notificationAudioContext.state !== "running") return;
+  const context = notificationAudioContext;
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const now = context.currentTime;
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(880, now);
+  oscillator.frequency.setValueAtTime(1174.66, now + 0.12);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.12, now + 0.025);
+  gain.gain.setValueAtTime(0.12, now + 0.13);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(now);
+  oscillator.stop(now + 0.33);
 }
 
 function setDarkMode(enabled) {
@@ -824,10 +967,6 @@ document.querySelectorAll(".mobile-toolbar [data-scroll]").forEach((button) => {
     }
   });
 });
-categoryScrollLeft.addEventListener("click", () => scrollCategoryRail("left"));
-categoryScrollRight.addEventListener("click", () => scrollCategoryRail("right"));
-categoryList.addEventListener("scroll", updateCategoryScrollControls, { passive: true });
-window.addEventListener("resize", updateCategoryScrollControls);
 languageButton.addEventListener("click", () =>
   setLanguage(language === "ar" ? "en" : "ar"),
 );
@@ -835,6 +974,7 @@ notificationButton.addEventListener("click", () => {
   unlockNotificationSound();
   toggleNotificationPanel();
 });
+refreshAppButton.addEventListener("click", () => window.location.reload());
 markNotificationsRead.addEventListener("click", () => {
   notifications.forEach(({ id }) => readNotificationIds.add(id));
   saveReadNotificationIds();
@@ -846,12 +986,15 @@ enablePushButton.addEventListener("click", async () => {
     showToast(currentText().pushSetupMissing);
     return;
   }
+  if (!("Notification" in window) || !("PushManager" in window)) {
+    showToast(currentText().pushUnavailable);
+    return;
+  }
   enablePushButton.disabled = true;
   try {
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
       showToast(currentText().pushPermissionDenied);
-      enablePushButton.disabled = false;
       return;
     }
     const registration = await navigator.serviceWorker.ready;
@@ -860,6 +1003,8 @@ enablePushButton.addEventListener("click", async () => {
         userVisibleOnly: true,
         applicationServerKey: decodeVapidPublicKey(supabaseConfig.vapidPublicKey),
       });
+      document.addEventListener("pointerdown", unlockNotificationSound, { once: true });
+      document.addEventListener("keydown", unlockNotificationSound, { once: true });
     await registerPushSubscription(subscription.toJSON());
     enablePushButton.textContent = currentText().pushEnabled;
     showToast(currentText().pushEnableSuccess);
@@ -868,17 +1013,20 @@ enablePushButton.addEventListener("click", async () => {
     showToast(error.message || currentText().pushUnavailable);
   }
 });
-document.addEventListener("pointerdown", unlockNotificationSound, { once: true });
-document.addEventListener("keydown", unlockNotificationSound, { once: true });
 document.addEventListener("click", (event) => {
   const path = event.composedPath();
-  if (!path.includes(notificationPanel) && !path.includes(notificationButton)) {
-    toggleNotificationPanel(false);
-  }
+  if (
+    !path.includes(notificationPanel) &&
+    !path.includes(notificationButton)
+  ) toggleNotificationPanel(false);
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") toggleNotificationPanel(false);
 });
+categoryScrollLeft.addEventListener("click", () => scrollCategoryRail("left"));
+categoryScrollRight.addEventListener("click", () => scrollCategoryRail("right"));
+categoryList.addEventListener("scroll", updateCategoryScrollControls, { passive: true });
+window.addEventListener("resize", updateCategoryScrollControls);
 themeButton.addEventListener("click", () =>
   setDarkMode(!document.body.classList.contains("dark")),
 );
@@ -903,28 +1051,6 @@ function isStandaloneApp() {
 
 installButton.hidden = isStandaloneApp();
 
-function setInstallLoading(isLoading) {
-  installButton.classList.toggle("is-installing", isLoading);
-  installButton.disabled = isLoading;
-  installButton.setAttribute("aria-busy", String(isLoading));
-  installButton.setAttribute(
-    "aria-label",
-    isLoading ? currentText().installing : currentText().install,
-  );
-  installProgress.hidden = !isLoading;
-}
-
-function clearInstallCompletionTimeout() {
-  window.clearTimeout(installCompletionTimeout);
-  installCompletionTimeout = undefined;
-}
-
-function installInstructions() {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  return isIOS ? currentText().installIOS : currentText().installUnavailable;
-}
-
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   installPrompt = event;
@@ -933,53 +1059,29 @@ window.addEventListener("beforeinstallprompt", (event) => {
 
 installButton.addEventListener("click", async () => {
   if (!installPrompt) {
-    showToast(installInstructions());
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    showToast(isIOS ? currentText().installIOS : currentText().installUnavailable);
     return;
   }
-
-  const promptEvent = installPrompt;
-  installPrompt = null;
-  setInstallLoading(true);
-
   try {
-    await promptEvent.prompt();
-    const { outcome } = await promptEvent.userChoice;
-    if (outcome === "accepted") {
-      showToast(currentText().installAccepted);
-      installCompletionTimeout = window.setTimeout(() => {
-        setInstallLoading(false);
-        if (isStandaloneApp()) {
-          installButton.hidden = true;
-          showToast(currentText().installSuccess);
-          return;
-        }
-        showToast(installInstructions());
-      }, 10000);
-      return;
-    }
-
-    setInstallLoading(false);
-    showToast(currentText().installCancelled);
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") showToast(currentText().installSuccess);
+    installPrompt = null;
+    installButton.hidden = true;
   } catch (error) {
-    setInstallLoading(false);
     showToast(error.message || currentText().installUnavailable);
   }
 });
 
 window.addEventListener("appinstalled", () => {
-  clearInstallCompletionTimeout();
   installPrompt = null;
-  setInstallLoading(false);
   installButton.hidden = true;
-  showToast(currentText().installSuccess);
 });
 
 window.matchMedia("(display-mode: standalone)").addEventListener("change", (event) => {
   installButton.hidden = event.matches;
-  if (event.matches) {
-    clearInstallCompletionTimeout();
-    setInstallLoading(false);
-  }
 });
 
 downloadCancelButton.addEventListener("click", () => {
@@ -1025,10 +1127,39 @@ try {
 }
 setLanguage("ar");
 
-if (isSupabaseConfigured) {
+if (localFeaturePreview) {
+  try {
+    const savedNotifications = localStorage.getItem(
+      "course-library-feature-preview-notifications",
+    );
+    notifications = savedNotifications
+      ? JSON.parse(savedNotifications)
+      : [{
+          id: "local-preview-notification",
+          title: "ملف جديد: تعليمات المراجعة النهائية",
+          body: "أضيفت تعليمات المراجعة. اضغط على هذا الإشعار للرجوع إليه.",
+          type: "announcement",
+          file_id: null,
+          created_at: new Date().toISOString(),
+        }];
+    renderNotifications();
+  } catch (error) {
+    showToast(error.message || "تعذر تحميل إشعارات المعاينة المحلية.");
+  }
+} else if (isSupabaseConfigured) {
   loadCloudLibrary()
-    .then(() => {
-      subscribeToLibrary(() => {
+    .then(async () => {
+      const requestedNotificationId = new URLSearchParams(window.location.search)
+        .get("notification");
+      if (requestedNotificationId) {
+        toggleNotificationPanel(true);
+        window.setTimeout(() => {
+          document.querySelector(
+            `[data-notification-id="${CSS.escape(requestedNotificationId)}"]`,
+          )?.scrollIntoView({ block: "center" });
+        }, 0);
+      }
+      await subscribeToLibrary(() => {
         loadCloudLibrary().catch((error) => {
           showToast(error.message || "تعذر تحديث المكتبة.");
         });
