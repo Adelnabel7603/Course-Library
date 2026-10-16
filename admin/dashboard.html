@@ -20,6 +20,7 @@
       <a class="admin-brand" href="../"><span class="brand-mark">م</span> مكتبة المقررات</a>
       <div class="header-actions">
         <a class="back-link" href="../">عرض المكتبة</a>
+        <button class="secondary-button" id="admin-theme-button" type="button" aria-pressed="false">الوضع الداكن</button>
         <button class="secondary-button" id="logout-button" type="button">تسجيل الخروج</button>
       </div>
     </header>
@@ -30,7 +31,33 @@
       </div>
       <p id="dashboard-message" class="notice" role="status" hidden></p>
 
-      <section class="panel">
+      <div class="dashboard-layout">
+        <nav class="dashboard-sidebar" aria-label="أقسام الإدارة">
+          <a href="#dashboard-overview" aria-current="location">نظرة عامة</a>
+          <a href="#homepage-sections-panel">أقسام الصفحة الرئيسية</a>
+          <a href="#categories-panel">المواد والتصنيفات</a>
+          <a href="#file-form-panel">رفع الملفات</a>
+          <a href="#notifications-panel">الإشعارات والإعلانات</a>
+          <a href="#files-panel">مكتبة الملفات</a>
+          <a href="#migration-panel">ترحيل الملفات القديمة</a>
+        </nav>
+        <div class="dashboard-content">
+          <section class="admin-overview" id="dashboard-overview" aria-label="إحصاءات المحتوى">
+            <article><span>مواد نشطة</span><strong id="overview-category-count">0</strong></article>
+            <article><span>ملفات منشورة</span><strong id="overview-file-count">0</strong></article>
+            <article><span>إشعارات نشطة</span><strong id="overview-notification-count">0</strong></article>
+            <article><span>إجمالي التنزيلات</span><strong id="overview-download-count">0</strong></article>
+          </section>
+
+          <section class="panel" id="homepage-sections-panel">
+            <div class="panel-heading">
+              <div><h2>أقسام الصفحة الرئيسية</h2><p class="muted">أظهر المجموعات ورتّبها للزوار. تُحفظ إعدادات المعاينة محليًا فقط.</p></div>
+            </div>
+            <p id="homepage-section-note" class="muted" hidden></p>
+            <ol id="homepage-section-list" class="homepage-section-list"></ol>
+          </section>
+
+      <section class="panel" id="migration-panel">
         <div class="panel-heading"><div><h2>ترحيل الملفات الحالية</h2><p class="muted">يحافظ على ملفات المشروع وبياناتها، ويرفعها إلى التخزين السحابي.</p></div></div>
         <ol class="setup-steps">
           <li>اختر مجلد <code>legacy-pdfs</code> من جهازك.</li>
@@ -43,7 +70,7 @@
         <progress id="migration-progress" max="14" value="0" hidden></progress>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="categories-panel">
         <div class="panel-heading category-panel-heading">
           <div class="category-heading-copy">
             <span class="category-heading-icon" aria-hidden="true">✳</span>
@@ -89,7 +116,7 @@
         <div id="category-list" class="category-admin-list"></div>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="file-form-panel">
         <div class="panel-heading"><div><h2 id="file-form-heading">إضافة ملف</h2><p class="muted">ارفع ملفًا، أدخل تفاصيله، ثم انشره مباشرة في المكتبة.</p></div></div>
         <form id="file-form" class="file-form">
           <input name="id" type="hidden" />
@@ -134,7 +161,7 @@
         </form>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="notifications-panel">
         <div class="panel-heading">
           <div><h2>إعلان أو تعليمات للزوار</h2><p class="muted">يظهر النص في جرس الإشعارات. تنبيه الجهاز يحتاج إكمال إعداد إشعارات النظام.</p></div>
         </div>
@@ -170,7 +197,7 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="files-panel">
         <div class="panel-heading file-list-heading">
           <div><h2>الملفات</h2><p id="file-count" class="muted"></p></div>
           <input id="file-search" type="search" placeholder="ابحث عن ملف..." aria-label="ابحث عن ملف" />
@@ -182,6 +209,8 @@
           </table>
         </div>
       </section>
+        </div>
+      </div>
     </main>
     <div id="admin-toast" class="admin-toast" role="status" aria-live="polite"></div>
   </body>

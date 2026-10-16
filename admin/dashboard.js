@@ -1,8 +1,10 @@
 import { legacyCategories, legacyFiles } from "../services/legacy-catalog.js";
 import { supabaseConfig } from "../config.js";
 
-const localFeaturePreview =
-  window.location.protocol === "file:" &&
+const isLocalPreviewHost = window.location.protocol === "file:" ||
+  (window.location.protocol === "http:" &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname));
+const localFeaturePreview = isLocalPreviewHost &&
   new URLSearchParams(window.location.search).get("preview") === "features";
 const { supabase: client } = localFeaturePreview
   ? { supabase: null }
@@ -28,6 +30,13 @@ const notificationUploadStatus = document.querySelector("#notification-upload-st
 const fileSearch = document.querySelector("#file-search");
 const fileTableBody = document.querySelector("#file-table-body");
 const fileCount = document.querySelector("#file-count");
+const adminThemeButton = document.querySelector("#admin-theme-button");
+const overviewCategoryCount = document.querySelector("#overview-category-count");
+const overviewFileCount = document.querySelector("#overview-file-count");
+const overviewNotificationCount = document.querySelector("#overview-notification-count");
+const overviewDownloadCount = document.querySelector("#overview-download-count");
+const homepageSectionList = document.querySelector("#homepage-section-list");
+const homepageSectionNote = document.querySelector("#homepage-section-note");
 const uploadInput = document.querySelector("#file-input");
 const fileSelection = document.querySelector("#file-selection");
 const uploadEditors = document.querySelector("#upload-editors");
@@ -41,6 +50,14 @@ const migrationButton = document.querySelector("#migration-button");
 let categories = [];
 let files = [];
 let notifications = [];
+const defaultHomepageSections = [
+  { id: "personal", position: 0, is_visible: true },
+  { id: "discovery", position: 1, is_visible: true },
+  { id: "planner", position: 2, is_visible: true },
+  { id: "library", position: 3, is_visible: true },
+];
+let homepageSections = defaultHomepageSections.map((section) => ({ ...section }));
+let homepageSectionSettingsAvailable = true;
 let toastTimeout;
 let tusClientPromise;
 let notificationPreviewUrl;
@@ -163,6 +180,17 @@ function notify(text, error = false) {
   toast.classList.add("visible");
   window.clearTimeout(toastTimeout);
   toastTimeout = window.setTimeout(() => toast.classList.remove("visible"), 3500);
+}
+
+function setAdminTheme(enabled) {
+  document.body.classList.toggle("dark", enabled);
+  adminThemeButton.textContent = enabled ? "الوضع الفاتح" : "الوضع الداكن";
+  adminThemeButton.setAttribute("aria-pressed", String(enabled));
+  try {
+    localStorage.setItem("course-library-admin-theme-v1", enabled ? "dark" : "light");
+  } catch {
+    return;
+  }
 }
 
 function formatFileSize(bytes) {
@@ -316,9 +344,176 @@ function renderAdminNotifications() {
     edit.type = "button";
     edit.textContent = "تعديل";
     edit.addEventListener("click", () => editNotification(item));
-    row.append(details, edit);
+    const remove = document.createElement("button");
+    remove.className = "danger-button small-button";
+    remove.type = "button";
+    remove.textContent = "حذف";
+    remove.addEventListener("click", () => { void deleteNotification(item); });
+    const actions = document.createElement("div");
+    actions.className = "admin-notification-actions";
+    actions.append(edit, remove);
+    row.append(details, actions);
     return row;
   }));
+  renderOverview();
+}
+
+async function deleteNotification(item) {
+  if (!window.confirm(`حذف الإشعار «${item.title}»؟`)) return;
+  if (localFeaturePreview) {
+    notifications = notifications.filter((notification) => notification.id !== item.id);
+    try {
+      localStorage.setItem("course-library-feature-preview-notifications", JSON.stringify(notifications));
+      await loadData();
+      notify("تم حذف الإشعار من المعاينة المحلية فقط.");
+    } catch (error) { notify(error.message, true); }
+    return;
+  }
+
+  try {
+    assertSuccess(await client.from("notifications").delete().eq("id", item.id));
+    await loadData();
+
+    const { data: remainingNotifications, error: referencesError } = await client
+      .from("notifications")
+      .select("image_path, attachments");
+    if (referencesError) {
+      notify("تم حذف الإشعار، لكن تعذر التحقق من المرفقات القديمة لتنظيفها.", true);
+      return;
+    }
+    const { data: libraryFiles, error: fileReferencesError } = await client
+      .from("files")
+      .select("object_path, cover_path");
+    if (fileReferencesError) {
+      notify("تم حذف الإشعار، لكن تعذر التحقق من مراجع الملفات لتنظيف المرفقات بأمان.", true);
+      return;
+    }
+
+    const usedImagePaths = new Set(remainingNotifications.map((notification) => notification.image_path).filter(Boolean));
+    const usedAttachmentPaths = new Set(remainingNotifications.flatMap((notification) =>
+      (Array.isArray(notification.attachments) ? notification.attachments : [])
+        .map((attachment) => attachment.object_path)
+        .filter(Boolean),
+    ));
+    const usedLibraryPaths = new Set(libraryFiles.flatMap((file) =>
+      [file.object_path, file.cover_path].filter(Boolean),
+    ));
+    const imagePath = item.image_path && !usedImagePaths.has(item.image_path)
+      ? item.image_path
+      : null;
+    const attachmentPaths = (Array.isArray(item.attachments) ? item.attachments : [])
+      .map((attachment) => attachment.object_path)
+      .filter((path) => path && !usedAttachmentPaths.has(path) && !usedLibraryPaths.has(path));
+    let cleanupWarning = "";
+    if (attachmentPaths.length) {
+      const { error } = await client.storage.from("library-files").remove(attachmentPaths);
+      if (error) cleanupWarning = `تم حذف الإشعار لكن تعذر حذف بعض مرفقاته: ${error.message}`;
+    }
+    if (imagePath) {
+      const { error } = await client.storage.from("notification-images").remove([imagePath]);
+      if (error) cleanupWarning = `تم حذف الإشعار لكن تعذر حذف صورته: ${error.message}`;
+    }
+    notify(cleanupWarning || "تم حذف الإشعار ومرفقاته غير المستخدمة.", Boolean(cleanupWarning));
+  } catch (error) { notify(error.message, true); }
+}
+
+function renderOverview() {
+  overviewCategoryCount.textContent = String(categories.filter((category) =>
+    category.is_active && !category.is_coming_soon).length);
+  overviewFileCount.textContent = String(files.filter((file) => file.is_published).length);
+  overviewNotificationCount.textContent = String(notifications.filter((item) => item.is_active).length);
+  overviewDownloadCount.textContent = String(files.reduce(
+    (total, file) => total + (Number(file.downloads) || 0),
+    0,
+  ));
+}
+
+function renderHomepageSections() {
+  const labels = {
+    personal: "المفضلة وآخر الملفات",
+    discovery: "الأحدث والأكثر تنزيلًا",
+    planner: "خطة المذاكرة",
+    library: "المواد والملفات",
+  };
+  const orderedSections = [...homepageSections].sort((first, second) => first.position - second.position);
+  homepageSectionNote.hidden = !localFeaturePreview && homepageSectionSettingsAvailable;
+  homepageSectionNote.textContent = localFeaturePreview
+    ? "معاينة محلية: لن تتغير إعدادات الموقع المنشور."
+    : "شغّل database/homepage-sections-migration.sql لتفعيل الحفظ الدائم لهذه الإعدادات.";
+
+  homepageSectionList.replaceChildren(...orderedSections.map((section, index) => {
+    const row = document.createElement("li");
+    row.className = "homepage-section-row";
+    const details = document.createElement("div");
+    details.className = "homepage-section-details";
+    const title = document.createElement("strong");
+    title.textContent = labels[section.id] || section.id;
+    const position = document.createElement("small");
+    position.textContent = `${index + 1}`;
+    details.append(title, position);
+
+    const visibilityLabel = document.createElement("label");
+    visibilityLabel.className = "homepage-section-visibility";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = section.is_visible;
+    checkbox.disabled = !homepageSectionSettingsAvailable && !localFeaturePreview;
+    checkbox.setAttribute("aria-label", `إظهار ${labels[section.id] || section.id}`);
+    checkbox.addEventListener("change", () => {
+      const updated = orderedSections.map((item) => item.id === section.id
+        ? { ...item, is_visible: checkbox.checked }
+        : item);
+      void saveHomepageSections(updated);
+    });
+    visibilityLabel.append(checkbox, document.createTextNode("ظاهر"));
+
+    const actions = document.createElement("div");
+    actions.className = "homepage-section-actions";
+    for (const [direction, label] of [[-1, "تحريك لأعلى"], [1, "تحريك لأسفل"]]) {
+      const button = document.createElement("button");
+      button.className = "secondary-button small-button order-button";
+      button.type = "button";
+      button.textContent = direction < 0 ? "↑" : "↓";
+      button.disabled = (!homepageSectionSettingsAvailable && !localFeaturePreview) ||
+        index + direction < 0 || index + direction >= orderedSections.length;
+      button.setAttribute("aria-label", `${label}: ${labels[section.id] || section.id}`);
+      button.addEventListener("click", () => {
+        const moved = [...orderedSections];
+        [moved[index], moved[index + direction]] = [moved[index + direction], moved[index]];
+        void saveHomepageSections(moved);
+      });
+      actions.append(button);
+    }
+    row.append(details, visibilityLabel, actions);
+    return row;
+  }));
+}
+
+async function saveHomepageSections(sections) {
+  const orderedSections = sections.map((section, position) => ({ ...section, position }));
+  if (localFeaturePreview) {
+    try {
+      localStorage.setItem("course-library-feature-preview-homepage-sections", JSON.stringify(orderedSections));
+      homepageSections = orderedSections;
+      renderHomepageSections();
+      notify("تم حفظ الترتيب في هذه المعاينة المحلية فقط.");
+    } catch (error) { notify(error.message, true); }
+    return;
+  }
+  if (!homepageSectionSettingsAvailable) return;
+  try {
+    assertSuccess(await client.from("homepage_sections").upsert(
+      orderedSections.map((section) => ({
+        id: section.id,
+        position: section.position,
+        is_visible: section.is_visible,
+        updated_at: new Date().toISOString(),
+      })),
+      { onConflict: "id" },
+    ));
+    await loadData();
+    notify("تم حفظ ترتيب أقسام الصفحة الرئيسية.");
+  } catch (error) { notify(error.message, true); }
 }
 
 async function requireAdmin() {
@@ -361,30 +556,49 @@ async function loadData() {
       : [];
     const savedNotifications = localStorage.getItem("course-library-feature-preview-notifications");
     notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
+    const savedSections = localStorage.getItem("course-library-feature-preview-homepage-sections");
+    homepageSections = savedSections ? JSON.parse(savedSections) : defaultHomepageSections.map((section) => ({ ...section }));
+    homepageSectionSettingsAvailable = true;
     renderCategories();
     renderParentCategoryOptions();
     renderCategoryOptions();
     renderFiles();
     renderAdminNotifications();
+    renderHomepageSections();
     return;
   }
-  const [categoryData, fileData, notificationData] = await Promise.all([
+  const [categoryData, fileData, notificationData, homepageSectionData] = await Promise.all([
     client.from("categories").select("*").order("position"),
     client.from("files").select("*, categories(id, name_ar, name_en, parent_id)").order("position").order("created_at", { ascending: false }),
     client.from("notifications").select("*").order("created_at", { ascending: false }).limit(50),
+    client.from("homepage_sections").select("id, position, is_visible").order("position"),
   ]);
   categories = assertSuccess(categoryData);
   files = assertSuccess(fileData);
   notifications = assertSuccess(notificationData);
+  if (homepageSectionData.error) {
+    if (!["42P01", "PGRST205"].includes(homepageSectionData.error.code)) {
+      throw homepageSectionData.error;
+    }
+    homepageSectionSettingsAvailable = false;
+    homepageSections = defaultHomepageSections.map((section) => ({ ...section }));
+  } else {
+    homepageSectionSettingsAvailable = true;
+    homepageSections = homepageSectionData.data.length
+      ? homepageSectionData.data
+      : defaultHomepageSections.map((section) => ({ ...section }));
+  }
   renderCategories();
   renderParentCategoryOptions();
   renderCategoryOptions();
   renderFiles();
   renderAdminNotifications();
+  renderHomepageSections();
 }
 
 function renderCategories() {
   categoryCount.textContent = String(categories.length);
+  renderOverview();
   categoryList.replaceChildren(
     ...categories.map((category, index) => {
       const row = document.createElement("article");
@@ -580,6 +794,7 @@ function renderFiles() {
       .includes(query),
   );
   fileCount.textContent = `${visibleFiles.length} من ${files.length} ملف`;
+  renderOverview();
   fileTableBody.replaceChildren(...visibleFiles.map((file) => {
     const row = document.createElement("tr");
     const cells = [
@@ -1466,6 +1681,41 @@ async function deleteFile(file) {
 }
 
 fileSearch.addEventListener("input", renderFiles);
+adminThemeButton.addEventListener("click", () => {
+  setAdminTheme(!document.body.classList.contains("dark"));
+});
+
+try {
+  setAdminTheme(localStorage.getItem("course-library-admin-theme-v1") === "dark");
+} catch {
+  setAdminTheme(false);
+}
+
+const adminNavigation = document.querySelector(".dashboard-sidebar");
+adminNavigation.addEventListener("click", (event) => {
+  const link = event.target.closest("a[href^='#']");
+  if (!link) return;
+  adminNavigation.querySelectorAll("a").forEach((item) => item.removeAttribute("aria-current"));
+  link.setAttribute("aria-current", "location");
+});
+
+if ("IntersectionObserver" in window) {
+  const adminSectionObserver = new IntersectionObserver((entries) => {
+    const visibleSections = entries
+      .filter((entry) => entry.isIntersecting)
+      .sort((first, second) => first.boundingClientRect.top - second.boundingClientRect.top);
+    if (!visibleSections.length) return;
+    const activeHref = `#${visibleSections[0].target.id}`;
+    adminNavigation.querySelectorAll("a").forEach((link) => {
+      if (link.getAttribute("href") === activeHref) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    });
+  }, { rootMargin: "-16% 0px -72% 0px", threshold: [0, 0.2, 0.5] });
+  document.querySelectorAll(".admin-overview, .dashboard-content > .panel").forEach((section) => {
+    adminSectionObserver.observe(section);
+  });
+}
+
 document.querySelector("#logout-button").addEventListener("click", async () => {
   const { error } = await client.auth.signOut();
   if (error) throw error;
@@ -1522,8 +1772,15 @@ if (localFeaturePreview) {
   document.querySelector("#dashboard-message").textContent =
     "معاينة محلية معزولة: التصنيفات والبيانات التجريبية محفوظة في هذا المتصفح فقط. لن يتصل هذا الوضع بقاعدة بيانات الموقع أو يرفع ملفات.";
   document.querySelector("#dashboard-message").hidden = false;
-  document.querySelectorAll(".dashboard > .panel").forEach((panel, index) => {
-    panel.hidden = ![1, 2, 3, 4].includes(index);
+  const previewPanels = new Set([
+    "homepage-sections-panel",
+    "categories-panel",
+    "file-form-panel",
+    "notifications-panel",
+    "files-panel",
+  ]);
+  document.querySelectorAll(".dashboard-content > .panel").forEach((panel) => {
+    panel.hidden = !previewPanels.has(panel.id);
   });
   document.querySelector("#logout-button").hidden = true;
   await loadData();

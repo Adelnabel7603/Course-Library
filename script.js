@@ -17,11 +17,68 @@ const translations = {
     notifications: "الإشعارات",
     markRead: "تحديد كمقروءة",
     enableNotifications: "تفعيل إشعارات الجهاز",
+    favorites: "المفضلة",
+    recentFiles: "آخر ما فتحته",
+    studyPlanner: "خطة المذاكرة",
+    yourLibrary: "مساحتك",
+    continueLearning: "متابعة",
+    buildYourRoutine: "خطوة بخطوة",
+    localPlannerNote: "محفوظة على هذا الجهاز",
+    noFavorites: "أضف ملفاتك المهمة إلى المفضلة لتصل إليها هنا.",
+    noRecentFiles: "ستظهر الملفات التي تفتحها هنا.",
+    addFavorite: "أضف إلى المفضلة",
+    removeFavorite: "إزالة من المفضلة",
+    browseCourses: "تصفّح المواد",
+    startPlanning: "خطط لمذاكرتك",
+    subjects: "مادة",
+    navCourses: "المواد",
+    navFavorites: "المفضلة",
+    navStudy: "المذاكرة",
+    navMore: "المزيد",
+    taskName: "المهمة",
+    taskPlaceholder: "مثال: مراجعة المحاضرة الثالثة",
+    subjectOptional: "المادة (اختياري)",
+    dueDate: "الموعد",
+    taskPriority: "الأولوية",
+    priorityLow: "منخفضة",
+    priorityNormal: "عادية",
+    priorityHigh: "عالية",
+    addTask: "أضف مهمة",
+    upcomingTasks: "المهام القادمة",
+    noTasks: "أضف مهمة صغيرة لتبدأ خطتك.",
+    focusSession: "جلسة تركيز",
+    focusTimer: "مؤقت المذاكرة",
+    durationLabel: "مدة الجلسة",
+    durationHours: "ساعة",
+    durationMinutes: "دقيقة",
+    durationHoursInput: "الساعات",
+    durationMinutesInput: "الدقائق",
+    durationRangeError: "اختر مدة من دقيقة واحدة إلى 23 ساعة و59 دقيقة.",
+    durationSaveError: "تعذر حفظ المدة على هذا الجهاز.",
+    timerStart: "ابدأ",
+    timerResume: "استأنف",
+    timerPause: "إيقاف مؤقت",
+    timerReset: "إنهاء الجلسة",
+    studyMinutes: "دقائق مسجلة",
+    taskComplete: "مكتملة",
+    deleteTask: "حذف المهمة",
+    tasksSummary: (done, remaining) => `${done} مكتملة · ${remaining} متبقية`,
+    sessionSaved: "تم تسجيل وقت المذاكرة.",
+    sessionComplete: "اكتملت جلسة التركيز.",
+    newArrivals: "أضيفت مؤخرًا",
+    latestFiles: "أحدث الملفات",
+    recordedUsage: "تنزيلات مسجلة",
+    popularFiles: "الأكثر تنزيلًا",
+    pdfNewTab: "فتح في تبويب جديد",
+    pdfLoading: "جارٍ فتح الملف…",
+    fullscreen: "ملء الشاشة",
+    closeViewer: "إغلاق العارض",
     noNotifications: "لا توجد إشعارات جديدة.",
     unreadCount: (count) => `${count} غير مقروء`,
     pushEnabled: "إشعارات الجهاز مفعّلة",
     pushEnableSuccess: "تم تفعيل إشعارات الجهاز.",
     pushPermissionDenied: "لم تسمح بإشعارات الجهاز.",
+    pushConnectionFailed: "تعذر الاتصال بخدمة الإشعارات. تحقّق من أن APP_ORIGIN في Supabase يطابق عنوان الموقع.",
     pushUnavailable: "تعذر تفعيل إشعارات الجهاز على هذا المتصفح.",
     pushSetupMissing: "إشعارات الجهاز غير مهيأة بعد؛ ستظهر التحديثات في الجرس.",
     admin: "الإدارة",
@@ -33,8 +90,8 @@ const translations = {
     lightMode: "الوضع النهاري",
     language: "English",
     eyebrow: "ملفات المحاضرات والمراجعة",
-    headline: "كل مادتك، في مكان واحد.",
-    description: "تصفّح الملفات وافتحها أو نزّلها بسهولة.",
+    headline: "خطوتك الدراسية التالية تبدأ من هنا.",
+    description: "موادك وملفاتك وخطة مذاكرتك، مرتبة لتصل إلى ما تحتاجه بسرعة.",
     pdfFiles: "ملف",
     navHome: "الرئيسية",
     navSearch: "بحث",
@@ -80,11 +137,68 @@ const translations = {
     notifications: "Notifications",
     markRead: "Mark all as read",
     enableNotifications: "Enable device notifications",
+    favorites: "Favorites",
+    recentFiles: "Recently opened",
+    studyPlanner: "Study plan",
+    yourLibrary: "Your space",
+    continueLearning: "Continue",
+    buildYourRoutine: "One step at a time",
+    localPlannerNote: "Saved on this device",
+    noFavorites: "Save important files here for quick access.",
+    noRecentFiles: "Files you open will appear here.",
+    addFavorite: "Add to favorites",
+    removeFavorite: "Remove from favorites",
+    browseCourses: "Browse courses",
+    startPlanning: "Plan a study session",
+    subjects: "subjects",
+    navCourses: "Courses",
+    navFavorites: "Saved",
+    navStudy: "Study",
+    navMore: "More",
+    taskName: "Task",
+    taskPlaceholder: "For example: Review lecture three",
+    subjectOptional: "Subject (optional)",
+    dueDate: "Due date",
+    taskPriority: "Priority",
+    priorityLow: "Low",
+    priorityNormal: "Normal",
+    priorityHigh: "High",
+    addTask: "Add task",
+    upcomingTasks: "Upcoming tasks",
+    noTasks: "Add a small task to start your plan.",
+    focusSession: "Focus session",
+    focusTimer: "Study timer",
+    durationLabel: "Session length",
+    durationHours: "hours",
+    durationMinutes: "minutes",
+    durationHoursInput: "Hours",
+    durationMinutesInput: "Minutes",
+    durationRangeError: "Choose a duration from 1 minute to 23 hours and 59 minutes.",
+    durationSaveError: "Could not save the duration on this device.",
+    timerStart: "Start",
+    timerResume: "Resume",
+    timerPause: "Pause",
+    timerReset: "End session",
+    studyMinutes: "Minutes recorded",
+    taskComplete: "Completed",
+    deleteTask: "Delete task",
+    tasksSummary: (done, remaining) => `${done} complete · ${remaining} remaining`,
+    sessionSaved: "Study time recorded.",
+    sessionComplete: "Focus session complete.",
+    newArrivals: "New arrivals",
+    latestFiles: "Latest files",
+    recordedUsage: "Recorded downloads",
+    popularFiles: "Most downloaded",
+    pdfNewTab: "Open in new tab",
+    pdfLoading: "Opening file…",
+    fullscreen: "Fullscreen",
+    closeViewer: "Close viewer",
     noNotifications: "No new notifications.",
     unreadCount: (count) => `${count} unread`,
     pushEnabled: "Device notifications are enabled",
     pushEnableSuccess: "Device notifications enabled.",
     pushPermissionDenied: "Device notifications were not allowed.",
+    pushConnectionFailed: "Could not reach the notification service. Check that Supabase APP_ORIGIN exactly matches this site's origin.",
     pushUnavailable: "Device notifications are unavailable in this browser.",
     pushSetupMissing: "Device notifications are not configured yet; updates will appear in the bell.",
     admin: "Admin",
@@ -96,8 +210,8 @@ const translations = {
     lightMode: "Light mode",
     language: "العربية",
     eyebrow: "Lecture notes and revision files",
-    headline: "All your courses, in one place.",
-    description: "Browse, open, and download your files with ease.",
+    headline: "Your next study step starts here.",
+    description: "Courses, files, and a study plan, organized around what you need next.",
     pdfFiles: "files",
     navHome: "Home",
     navSearch: "Search",
@@ -143,6 +257,35 @@ const categoryScrollLeft = document.querySelector("#category-scroll-left");
 const categoryScrollRight = document.querySelector("#category-scroll-right");
 const fileGrid = document.querySelector("#file-grid");
 const searchInput = document.querySelector("#search-input");
+const favoritesList = document.querySelector("#favorites-list");
+const favoritesCount = document.querySelector("#favorites-count");
+const favoritesEmpty = document.querySelector("#favorites-empty");
+const recentList = document.querySelector("#recent-list");
+const recentCount = document.querySelector("#recent-count");
+const recentEmpty = document.querySelector("#recent-empty");
+const latestPanel = document.querySelector("#latest-files");
+const latestList = document.querySelector("#latest-list");
+const latestCount = document.querySelector("#latest-count");
+const popularPanel = document.querySelector("#popular-files");
+const popularList = document.querySelector("#popular-list");
+const popularCount = document.querySelector("#popular-count");
+const studyTaskForm = document.querySelector("#study-task-form");
+const studyTaskList = document.querySelector("#study-task-list");
+const studyTaskEmpty = document.querySelector("#study-empty");
+const studyCategorySelect = document.querySelector("#study-category");
+const studySummary = document.querySelector("#study-summary");
+const studyTimerDisplay = document.querySelector("#study-timer-display");
+const studyDurationHoursInput = document.querySelector("#study-duration-hours");
+const studyDurationMinutesInput = document.querySelector("#study-duration-minutes");
+const studyTimerStatus = document.querySelector("#study-timer-status");
+const studySessionTotal = document.querySelector("#study-session-total");
+const timerStartButton = document.querySelector("#timer-start");
+const timerPauseButton = document.querySelector("#timer-pause");
+const timerResetButton = document.querySelector("#timer-reset");
+const mobileNavigation = document.querySelector("#mobile-navigation");
+const mobileNavIndicator = document.querySelector("#mobile-nav-indicator");
+const moreMenuButton = document.querySelector("#more-menu-button");
+const mobileMoreMenu = document.querySelector("#mobile-more-menu");
 const resultCount = document.querySelector("#result-count");
 const totalCount = document.querySelector("#total-count");
 const footerCount = document.querySelector("#footer-count");
@@ -159,6 +302,14 @@ const notificationEmpty = document.querySelector("#notification-empty");
 const markNotificationsRead = document.querySelector("#mark-notifications-read");
 const enablePushButton = document.querySelector("#enable-push-button");
 const shareButton = document.querySelector("#share-button");
+const pdfViewer = document.querySelector("#pdf-viewer");
+const pdfViewerTitle = document.querySelector("#pdf-viewer-title");
+const pdfViewerFrame = document.querySelector("#pdf-viewer-frame");
+const pdfViewerLoading = document.querySelector("#pdf-viewer-loading");
+const pdfViewerOpenOriginal = document.querySelector("#pdf-viewer-open-original");
+const pdfViewerDownload = document.querySelector("#pdf-viewer-download");
+const pdfViewerFullscreen = document.querySelector("#pdf-viewer-fullscreen");
+const pdfViewerClose = document.querySelector("#pdf-viewer-close");
 const installButton = document.querySelector("#install-button");
 const toast = document.querySelector("#toast");
 const appUpdatePrompt = document.querySelector("#app-update-prompt");
@@ -174,6 +325,7 @@ const siteUrl = new URL("./", window.location.href).href;
 let activeCategory = "all";
 let language = "ar";
 let toastTimeout;
+let mobileMoreMenuCloseTimeout;
 let installPrompt;
 let activeDownload;
 let notifications = [];
@@ -185,6 +337,28 @@ const localFeaturePreview = window.location.protocol === "file:" &&
   new URLSearchParams(window.location.search).get("preview") === "features";
 const notificationReadKey = "course-library-read-notifications-v1";
 const readNotificationIds = new Set(loadReadNotificationIds());
+const favoriteStorageKey = "course-library-favorites-v1";
+const recentStorageKey = "course-library-recent-v1";
+const studyTaskStorageKey = "course-library-study-tasks-v1";
+const studySessionStorageKey = "course-library-study-sessions-v1";
+const studyDurationStorageKey = "course-library-study-duration-minutes-v1";
+const defaultStudyDurationMinutes = 25;
+const favoriteFileIds = new Set(loadStoredArray(favoriteStorageKey));
+let recentFileIds = loadStoredArray(recentStorageKey);
+let studyTasks = loadStoredArray(studyTaskStorageKey);
+let studySessions = loadStoredArray(studySessionStorageKey);
+let focusDurationSeconds = loadStudyDurationMinutes() * 60;
+let studyElapsedSeconds = 0;
+let studySegmentStartedAt = 0;
+let studyTimerInterval;
+let activeNavigationSection = "top";
+const defaultHomepageSections = [
+  { id: "personal", position: 0, is_visible: true },
+  { id: "discovery", position: 1, is_visible: true },
+  { id: "planner", position: 2, is_visible: true },
+  { id: "library", position: 3, is_visible: true },
+];
+let homepageSections = defaultHomepageSections;
 
 let categories = legacyCategories.map((category) => ({
   ...category,
@@ -209,6 +383,481 @@ function saveReadNotificationIds() {
   } catch {
     return;
   }
+}
+
+function loadStoredArray(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadStudyDurationMinutes() {
+  try {
+    const minutes = Number(localStorage.getItem(studyDurationStorageKey));
+    return Number.isInteger(minutes) && minutes >= 1 && minutes <= 1439
+      ? minutes
+      : defaultStudyDurationMinutes;
+  } catch {
+    return defaultStudyDurationMinutes;
+  }
+}
+
+function saveStoredArray(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getFileIdentity(file) {
+  return file.id || `legacy:${file.category_id || file.category || "file"}:${file.name}`;
+}
+
+function getCategoryIdentity(category) {
+  return category.id || `legacy:${category.key || category.name_ar}`;
+}
+
+function normalizeSearch(value) {
+  return String(value)
+    .normalize("NFKC")
+    .toLocaleLowerCase(language === "ar" ? "ar" : "en")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/[\u0610-\u061A\u064B-\u065F\u0670\u0640]/g, "")
+    .trim();
+}
+
+function createPersonalFileRow(file) {
+  const row = document.createElement("li");
+  row.className = "personal-file-row";
+
+  const link = document.createElement("a");
+  link.className = "personal-file-link";
+  link.href = cloudLibraryEnabled ? file.url : fileUrl(file.name);
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.addEventListener("click", () => rememberRecentlyOpened(file));
+
+  const title = document.createElement("strong");
+  title.textContent = cloudLibraryEnabled ? file.name : file.name.replace(/\.pdf$/i, "");
+  const category = document.createElement("span");
+  category.textContent = cloudLibraryEnabled
+    ? getCategoryLabel(file.categories || { name_ar: file.category, name_en: file.categoryNameEn })
+    : currentText().categories[file.category] || file.category;
+  link.append(title, category);
+
+  const favoriteButton = document.createElement("button");
+  favoriteButton.className = "personal-favorite-toggle";
+  favoriteButton.type = "button";
+  const isFavorite = favoriteFileIds.has(getFileIdentity(file));
+  favoriteButton.textContent = isFavorite ? "★" : "☆";
+  favoriteButton.setAttribute("aria-pressed", String(isFavorite));
+  favoriteButton.setAttribute(
+    "aria-label",
+    isFavorite ? currentText().removeFavorite : currentText().addFavorite,
+  );
+  favoriteButton.addEventListener("click", () => toggleFavorite(file));
+
+  row.append(link, favoriteButton);
+  return row;
+}
+
+function rememberRecentlyOpened(file) {
+  const fileIdentity = getFileIdentity(file);
+  recentFileIds = [fileIdentity, ...recentFileIds.filter((id) => id !== fileIdentity)].slice(0, 12);
+  saveStoredArray(recentStorageKey, recentFileIds);
+  renderPersonalSections();
+}
+
+function toggleFavorite(file) {
+  const fileIdentity = getFileIdentity(file);
+  if (favoriteFileIds.has(fileIdentity)) {
+    favoriteFileIds.delete(fileIdentity);
+  } else {
+    favoriteFileIds.add(fileIdentity);
+  }
+  saveStoredArray(favoriteStorageKey, [...favoriteFileIds]);
+  renderFiles();
+}
+
+function renderPersonalSections() {
+  const filesById = new Map(availableFiles.map((file) => [getFileIdentity(file), file]));
+  const favoriteFiles = [...favoriteFileIds]
+    .map((id) => filesById.get(id))
+    .filter(Boolean);
+  const recentFiles = recentFileIds
+    .map((id) => filesById.get(id))
+    .filter(Boolean);
+
+  favoritesCount.textContent = String(favoriteFiles.length);
+  recentCount.textContent = String(recentFiles.length);
+  favoritesEmpty.hidden = favoriteFiles.length > 0;
+  recentEmpty.hidden = recentFiles.length > 0;
+  favoritesList.replaceChildren(...favoriteFiles.map(createPersonalFileRow));
+  recentList.replaceChildren(...recentFiles.map(createPersonalFileRow));
+  renderCuratedSections();
+}
+
+function renderCuratedSections() {
+  const latestFiles = availableFiles
+    .filter((file) => Number.isFinite(Date.parse(file.created_at)))
+    .sort((first, second) => Date.parse(second.created_at) - Date.parse(first.created_at))
+    .slice(0, 4);
+  const popularFiles = availableFiles
+    .filter((file) => Number(file.downloads) > 0)
+    .sort((first, second) => Number(second.downloads) - Number(first.downloads))
+    .slice(0, 4);
+
+  latestPanel.hidden = latestFiles.length === 0;
+  latestCount.textContent = String(latestFiles.length);
+  latestList.replaceChildren(...latestFiles.map(createPersonalFileRow));
+  popularPanel.hidden = popularFiles.length === 0;
+  popularCount.textContent = String(popularFiles.length);
+  popularList.replaceChildren(...popularFiles.map(createPersonalFileRow));
+}
+
+function applyHomepageSections(settings = homepageSections) {
+  const main = document.querySelector(".main-content");
+  const sectionElements = new Map([
+    ["personal", document.querySelector(".personal-grid:not(.curated-grid)")],
+    ["discovery", document.querySelector(".curated-grid")],
+    ["planner", document.querySelector("#planner")],
+    ["library", document.querySelector("#library")],
+  ]);
+  const configured = new Map(settings.map((section) => [section.id, section]));
+  const orderedSections = defaultHomepageSections
+    .map((section, fallbackIndex) => ({
+      ...section,
+      ...(configured.get(section.id) || {}),
+      fallbackIndex,
+    }))
+    .sort((first, second) => first.position - second.position || first.fallbackIndex - second.fallbackIndex);
+
+  for (const section of orderedSections) {
+    const element = sectionElements.get(section.id);
+    element.hidden = section.is_visible === false;
+    main.append(element);
+  }
+
+  const visibility = {
+    personal: !sectionElements.get("personal").hidden,
+    planner: !sectionElements.get("planner").hidden,
+    library: !sectionElements.get("library").hidden,
+  };
+  document.querySelectorAll('[data-nav-target="favorites"], .desktop-section-nav [data-nav-section="favorites"]')
+    .forEach((element) => { element.hidden = !visibility.personal; });
+  document.querySelectorAll('[data-nav-target="planner"], .desktop-section-nav [data-nav-section="planner"], .hero-actions a[href="#planner"]')
+    .forEach((element) => { element.hidden = !visibility.planner; });
+  document.querySelectorAll('[data-nav-target="library"], .desktop-section-nav [data-nav-section="library"], .hero-actions a[href="#library"]')
+    .forEach((element) => { element.hidden = !visibility.library; });
+  if (
+    (activeNavigationSection === "favorites" && !visibility.personal) ||
+    (activeNavigationSection === "planner" && !visibility.planner) ||
+    (activeNavigationSection === "library" && !visibility.library)
+  ) setActiveNavigation("top");
+}
+
+function isPdfFile(file) {
+  return file.mime_type === "application/pdf" || /\.pdf$/i.test(file.name);
+}
+
+function showPdfViewer(file) {
+  const sourceUrl = cloudLibraryEnabled ? file.url : fileUrl(file.name);
+  if (!sourceUrl) {
+    showToast(currentText().downloadFailed);
+    return;
+  }
+  pdfViewerTitle.textContent = file.name.replace(/\.pdf$/i, "");
+  pdfViewerOpenOriginal.href = sourceUrl;
+  pdfViewerDownload.href = cloudLibraryEnabled ? file.downloadUrl : fileUrl(file.name);
+  pdfViewerDownload.download = getDownloadName(file);
+  pdfViewerFullscreen.setAttribute("aria-label", currentText().fullscreen);
+  pdfViewerFullscreen.title = currentText().fullscreen;
+  pdfViewerClose.setAttribute("aria-label", currentText().closeViewer);
+  pdfViewerClose.title = currentText().closeViewer;
+  pdfViewerLoading.hidden = false;
+  pdfViewerFrame.title = `${currentText().open}: ${file.name}`;
+  pdfViewerFrame.src = sourceUrl;
+  rememberRecentlyOpened(file);
+  if (typeof pdfViewer.showModal === "function") pdfViewer.showModal();
+  else window.open(sourceUrl, "_blank", "noopener");
+}
+
+function renderStudyPlanner() {
+  const selectedCategory = studyCategorySelect.value;
+  studyCategorySelect.replaceChildren(new Option(currentText().all, ""));
+  for (const category of categories.filter((item) => item.available)) {
+    studyCategorySelect.append(new Option(
+      language === "en" && category.name_en ? category.name_en : textCategoryName(category),
+      getCategoryIdentity(category),
+    ));
+  }
+  if ([...studyCategorySelect.options].some((option) => option.value === selectedCategory)) {
+    studyCategorySelect.value = selectedCategory;
+  }
+
+  const priorityOrder = { high: 0, normal: 1, low: 2 };
+  const orderedTasks = [...studyTasks].sort((first, second) => {
+    if (first.completed !== second.completed) return Number(first.completed) - Number(second.completed);
+    const priorityDifference = (priorityOrder[first.priority] ?? 1) - (priorityOrder[second.priority] ?? 1);
+    if (priorityDifference) return priorityDifference;
+    return (first.dueDate || "9999-12-31").localeCompare(second.dueDate || "9999-12-31");
+  });
+  studyTaskList.replaceChildren(...orderedTasks.map((task) => {
+    const item = document.createElement("li");
+    item.className = `study-task${task.completed ? " is-complete" : ""}`;
+
+    const label = document.createElement("label");
+    label.className = "study-task-label";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = Boolean(task.completed);
+    checkbox.setAttribute("aria-label", `${currentText().taskComplete}: ${task.title}`);
+    checkbox.addEventListener("change", () => {
+      studyTasks = studyTasks.map((storedTask) => storedTask.id === task.id
+        ? { ...storedTask, completed: checkbox.checked }
+        : storedTask);
+      saveStoredArray(studyTaskStorageKey, studyTasks);
+      renderStudyPlanner();
+    });
+    const title = document.createElement("span");
+    title.textContent = task.title;
+    label.append(checkbox, title);
+    item.append(label);
+
+    const category = categories.find((entry) => getCategoryIdentity(entry) === task.categoryId);
+    if (category || task.dueDate || task.priority) {
+      const detail = document.createElement("span");
+      detail.className = "study-task-detail";
+      const priority = document.createElement("span");
+      const priorityValue = task.priority || "normal";
+      priority.className = `task-priority is-${priorityValue}`;
+      priority.textContent = currentText()[
+        priorityValue === "high" ? "priorityHigh" : priorityValue === "low" ? "priorityLow" : "priorityNormal"
+      ];
+      detail.append(priority);
+      if (category) {
+        detail.textContent = language === "en" && category.name_en
+          ? category.name_en
+          : textCategoryName(category);
+      }
+      if (task.dueDate) {
+        const dueDate = new Date(`${task.dueDate}T00:00:00`);
+        const time = document.createElement("time");
+        time.dateTime = task.dueDate;
+        time.textContent = new Intl.DateTimeFormat(language === "ar" ? "ar-EG" : "en-US", {
+          dateStyle: "medium",
+        }).format(dueDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (!task.completed && dueDate < today) time.classList.add("is-overdue");
+        detail.append(time);
+      }
+      item.append(detail);
+    }
+
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "study-task-delete";
+    deleteButton.type = "button";
+    deleteButton.textContent = "×";
+    deleteButton.setAttribute("aria-label", `${currentText().deleteTask}: ${task.title}`);
+    deleteButton.addEventListener("click", () => {
+      studyTasks = studyTasks.filter((storedTask) => storedTask.id !== task.id);
+      saveStoredArray(studyTaskStorageKey, studyTasks);
+      renderStudyPlanner();
+    });
+    item.append(deleteButton);
+    return item;
+  }));
+
+  const completedTasks = studyTasks.filter((task) => task.completed).length;
+  studySummary.textContent = currentText().tasksSummary(
+    completedTasks,
+    studyTasks.length - completedTasks,
+  );
+  studyTaskEmpty.hidden = studyTasks.length > 0;
+  const totalStudySeconds = studySessions.reduce((total, session) => total + session.seconds, 0);
+  studySessionTotal.textContent = String(Math.floor(totalStudySeconds / 60));
+  updateStudyTimerDisplay();
+}
+
+function currentTimerElapsedSeconds() {
+  const activeSeconds = studySegmentStartedAt
+    ? Math.floor((Date.now() - studySegmentStartedAt) / 1000)
+    : 0;
+  return studyElapsedSeconds + activeSeconds;
+}
+
+function updateStudyTimerDisplay() {
+  const durationMinutes = Math.round(focusDurationSeconds / 60);
+  studyDurationHoursInput.value = String(Math.floor(durationMinutes / 60));
+  studyDurationMinutesInput.value = String(durationMinutes % 60);
+  const durationLocked = Boolean(studySegmentStartedAt || studyElapsedSeconds);
+  studyDurationHoursInput.disabled = durationLocked;
+  studyDurationMinutesInput.disabled = durationLocked;
+  const remainingSeconds = Math.max(0, focusDurationSeconds - currentTimerElapsedSeconds());
+  const totalMinutes = Math.floor(remainingSeconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = String(totalMinutes % 60).padStart(2, "0");
+  const seconds = String(remainingSeconds % 60).padStart(2, "0");
+  studyTimerDisplay.textContent = hours
+    ? `${String(hours).padStart(2, "0")}:${minutes}:${seconds}`
+    : `${minutes}:${seconds}`;
+  timerPauseButton.disabled = !studySegmentStartedAt;
+  timerResetButton.disabled = currentTimerElapsedSeconds() === 0;
+  timerStartButton.textContent = currentTimerElapsedSeconds() > 0
+    ? currentText().timerResume
+    : currentText().timerStart;
+}
+
+function saveStudyDuration() {
+  const hours = Number(studyDurationHoursInput.value);
+  const minutes = Number(studyDurationMinutesInput.value);
+  const totalMinutes = hours * 60 + minutes;
+  if (
+    !Number.isInteger(hours) || hours < 0 || hours > 23 ||
+    !Number.isInteger(minutes) || minutes < 0 || minutes > 59 ||
+    totalMinutes < 1 || totalMinutes > 1439
+  ) {
+    showStudyTimerStatus(currentText().durationRangeError);
+    updateStudyTimerDisplay();
+    return;
+  }
+
+  focusDurationSeconds = totalMinutes * 60;
+  try {
+    localStorage.setItem(studyDurationStorageKey, String(totalMinutes));
+    showStudyTimerStatus();
+  } catch {
+    showStudyTimerStatus(currentText().durationSaveError);
+  }
+  updateStudyTimerDisplay();
+}
+
+function showStudyTimerStatus(message = "") {
+  studyTimerStatus.textContent = message;
+  studyTimerStatus.hidden = !message;
+}
+
+function recordStudySession(seconds) {
+  const duration = Math.max(0, Math.floor(seconds));
+  if (!duration) return;
+  studySessions = [{ id: `session-${Date.now()}`, seconds: duration, createdAt: new Date().toISOString() },
+    ...studySessions].slice(0, 100);
+  saveStoredArray(studySessionStorageKey, studySessions);
+  renderStudyPlanner();
+}
+
+function startStudyTimer() {
+  if (studySegmentStartedAt) return;
+  studySegmentStartedAt = Date.now();
+  studyTimerInterval = window.setInterval(() => {
+    if (currentTimerElapsedSeconds() >= focusDurationSeconds) {
+      const segmentSeconds = Math.max(0, focusDurationSeconds - studyElapsedSeconds);
+      window.clearInterval(studyTimerInterval);
+      studyTimerInterval = undefined;
+      studySegmentStartedAt = 0;
+      recordStudySession(segmentSeconds);
+      studyElapsedSeconds = 0;
+      updateStudyTimerDisplay();
+      showStudyTimerStatus();
+      showToast(currentText().sessionComplete);
+      return;
+    }
+    updateStudyTimerDisplay();
+  }, 1000);
+  updateStudyTimerDisplay();
+}
+
+function pauseStudyTimer() {
+  if (!studySegmentStartedAt) return;
+  const segmentSeconds = Math.floor((Date.now() - studySegmentStartedAt) / 1000);
+  studyElapsedSeconds += segmentSeconds;
+  studySegmentStartedAt = 0;
+  window.clearInterval(studyTimerInterval);
+  studyTimerInterval = undefined;
+  recordStudySession(segmentSeconds);
+  updateStudyTimerDisplay();
+  showStudyTimerStatus(currentText().sessionSaved);
+}
+
+function resetStudyTimer() {
+  if (studySegmentStartedAt) {
+    const segmentSeconds = Math.floor((Date.now() - studySegmentStartedAt) / 1000);
+    window.clearInterval(studyTimerInterval);
+    studyTimerInterval = undefined;
+    studySegmentStartedAt = 0;
+    recordStudySession(segmentSeconds);
+    showStudyTimerStatus(currentText().sessionSaved);
+  }
+  studyElapsedSeconds = 0;
+  updateStudyTimerDisplay();
+}
+
+function createLocalId(prefix) {
+  const uniquePart = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${prefix}-${uniquePart}`;
+}
+
+function setActiveNavigation(sectionId) {
+  activeNavigationSection = sectionId;
+  const mobileButtons = [...mobileNavigation.querySelectorAll("[data-nav-target]")];
+  for (const button of mobileButtons) {
+    const isActive = button.dataset.navTarget === sectionId;
+    if (isActive) button.setAttribute("aria-current", "location");
+    else button.removeAttribute("aria-current");
+  }
+  document.querySelectorAll(".desktop-section-nav [data-nav-section]").forEach((link) => {
+    if (link.dataset.navSection === sectionId) link.setAttribute("aria-current", "location");
+    else link.removeAttribute("aria-current");
+  });
+
+  const activeButton = mobileButtons.find((button) => button.dataset.navTarget === sectionId);
+  if (!activeButton) return;
+  const navBounds = mobileNavigation.getBoundingClientRect();
+  const buttonBounds = activeButton.getBoundingClientRect();
+  const indicatorWidth = Math.min(6, buttonBounds.width * 0.56);
+  const indicatorOffset = buttonBounds.left - navBounds.left + buttonBounds.width / 2 - indicatorWidth / 2;
+  mobileNavIndicator.style.width = `${indicatorWidth}px`;
+  mobileNavIndicator.style.transform = `translateX(${indicatorOffset}px)`;
+}
+
+function closeMobileMoreMenu() {
+  moreMenuButton.setAttribute("aria-expanded", "false");
+  mobileMoreMenu.classList.remove("is-open");
+  window.clearTimeout(mobileMoreMenuCloseTimeout);
+  if (mobileMoreMenu.hidden) return;
+  mobileMoreMenuCloseTimeout = window.setTimeout(() => {
+    if (moreMenuButton.getAttribute("aria-expanded") === "false") {
+      mobileMoreMenu.hidden = true;
+    }
+  }, 180);
+}
+
+function positionMobileMoreMenu() {
+  const buttonBounds = moreMenuButton.getBoundingClientRect();
+  const menuWidth = Math.min(280, window.innerWidth - 28);
+  const margin = 14;
+  const left = Math.max(
+    margin,
+    Math.min(
+      buttonBounds.left + buttonBounds.width / 2 - menuWidth / 2,
+      window.innerWidth - menuWidth - margin,
+    ),
+  );
+  mobileMoreMenu.style.left = `${left}px`;
+  mobileMoreMenu.style.right = "auto";
+  mobileMoreMenu.style.bottom = `${window.innerHeight - buttonBounds.top + 10}px`;
+  mobileMoreMenu.style.setProperty(
+    "--more-pointer-left",
+    `${buttonBounds.left + buttonBounds.width / 2 - left}px`,
+  );
 }
 
 function currentText() {
@@ -240,9 +889,16 @@ function setLanguage(nextLanguage) {
     "aria-label",
     currentText().searchPlaceholder.replace(/\.\.\.$/, ""),
   );
+  document.querySelectorAll("[data-placeholder]").forEach((element) => {
+    const placeholder = currentText()[element.dataset.placeholder];
+    if (placeholder) element.placeholder = placeholder;
+  });
   renderCategories();
   renderFiles();
   renderNotifications();
+  renderStudyPlanner();
+  applyHomepageSections();
+  setActiveNavigation(activeNavigationSection);
 }
 
 function renderNotifications() {
@@ -544,7 +1200,7 @@ function fileUrl(fileName) {
 
 function renderFiles() {
   const text = currentText();
-  const query = searchInput.value.trim().toLocaleLowerCase();
+  const query = normalizeSearch(searchInput.value);
   const selectedCategoryIds = new Set();
   if (activeCategory !== "all" && cloudLibraryEnabled) {
     selectedCategoryIds.add(activeCategory);
@@ -566,15 +1222,18 @@ function renderFiles() {
       (cloudLibraryEnabled
         ? selectedCategoryIds.has(file.category_id)
         : file.category === activeCategory);
-    const matchesSearch = `${file.name} ${file.description || ""}`
-      .toLocaleLowerCase()
-      .includes(query);
+    const categoryName = cloudLibraryEnabled
+      ? getCategoryLabel(file.categories || { name_ar: file.category, name_en: file.categoryNameEn })
+      : text.categories[file.category] || file.category;
+    const matchesSearch = normalizeSearch(
+      `${file.name} ${file.description || ""} ${categoryName} ${file.mime_type || ""}`,
+    ).includes(query);
     return matchesCategory && matchesSearch;
   });
   function createFileCard(file) {
     const card = document.createElement("article");
     card.className = "file-card";
-    if (file.id) card.dataset.fileId = file.id;
+    card.dataset.fileId = getFileIdentity(file);
 
     const top = document.createElement("div");
     top.className = "file-card-top";
@@ -611,7 +1270,18 @@ function renderFiles() {
       })
       : text.categories[file.category] || file.category;
     details.append(title, category);
-    top.append(icon, details);
+    const favoriteButton = document.createElement("button");
+    favoriteButton.className = "file-favorite-button";
+    favoriteButton.type = "button";
+    const isFavorite = favoriteFileIds.has(getFileIdentity(file));
+    favoriteButton.textContent = isFavorite ? "★" : "☆";
+    favoriteButton.setAttribute("aria-pressed", String(isFavorite));
+    favoriteButton.setAttribute(
+      "aria-label",
+      isFavorite ? text.removeFavorite : text.addFavorite,
+    );
+    favoriteButton.addEventListener("click", () => toggleFavorite(file));
+    top.append(icon, details, favoriteButton);
 
     if (mimeType.startsWith("image/")) {
       const image = document.createElement("img");
@@ -654,6 +1324,15 @@ function renderFiles() {
     openLink.rel = "noopener";
     openLink.textContent = `↗ ${text.open}`;
     openLink.setAttribute("aria-label", `${text.open}: ${file.name}`);
+    openLink.addEventListener("click", (event) => {
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      if (isPdfFile(file)) {
+        event.preventDefault();
+        showPdfViewer(file);
+        return;
+      }
+      rememberRecentlyOpened(file);
+    });
 
     const downloadLink = document.createElement("a");
     downloadLink.className = "file-action";
@@ -748,6 +1427,7 @@ function renderFiles() {
   emptyState.textContent = text.empty;
   emptyState.hidden = visibleFiles.length > 0;
   fileGrid.hidden = visibleFiles.length === 0;
+  renderPersonalSections();
 }
 
 async function loadCloudLibrary() {
@@ -761,6 +1441,9 @@ async function loadCloudLibrary() {
     key: category.name_ar,
     available: !category.is_coming_soon,
   }));
+  homepageSections = library.homepageSections.length
+    ? library.homepageSections
+    : defaultHomepageSections;
   availableFiles = library.files;
   notifications = library.notifications;
   notificationsLoaded = true;
@@ -777,6 +1460,8 @@ async function loadCloudLibrary() {
   renderCategories();
   renderFiles();
   renderNotifications();
+  renderStudyPlanner();
+  applyHomepageSections();
 }
 
 function unlockNotificationSound() {
@@ -957,15 +1642,105 @@ async function downloadFile(file, url) {
   }
 }
 
-searchInput.addEventListener("input", renderFiles);
-document.querySelectorAll(".mobile-toolbar [data-scroll]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const target = document.querySelector(button.dataset.scroll);
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-      if (target === searchInput) searchInput.focus({ preventScroll: true });
-    }
+studyTaskForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const formData = new FormData(studyTaskForm);
+  const title = String(formData.get("title") || "").trim();
+  if (!title) return;
+  studyTasks.unshift({
+    id: createLocalId("task"),
+    title,
+    categoryId: String(formData.get("category_id") || ""),
+    dueDate: String(formData.get("due_date") || ""),
+    priority: String(formData.get("priority") || "normal"),
+    completed: false,
+    createdAt: new Date().toISOString(),
   });
+  saveStoredArray(studyTaskStorageKey, studyTasks);
+  studyTaskForm.reset();
+  renderStudyPlanner();
+});
+
+timerStartButton.addEventListener("click", startStudyTimer);
+timerPauseButton.addEventListener("click", pauseStudyTimer);
+timerResetButton.addEventListener("click", resetStudyTimer);
+studyDurationHoursInput.addEventListener("change", saveStudyDuration);
+studyDurationMinutesInput.addEventListener("change", saveStudyDuration);
+
+mobileNavigation.querySelectorAll("[data-nav-target]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const section = document.getElementById(button.dataset.navTarget);
+    if (!section) return;
+    setActiveNavigation(button.dataset.navTarget);
+    section.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      block: "start",
+    });
+  });
+});
+
+moreMenuButton.addEventListener("click", () => {
+  const isOpening = moreMenuButton.getAttribute("aria-expanded") !== "true";
+  if (!isOpening) {
+    closeMobileMoreMenu();
+    return;
+  }
+  window.clearTimeout(mobileMoreMenuCloseTimeout);
+  positionMobileMoreMenu();
+  mobileMoreMenu.hidden = false;
+  moreMenuButton.setAttribute("aria-expanded", "true");
+  window.requestAnimationFrame(() => mobileMoreMenu.classList.add("is-open"));
+});
+
+mobileMoreMenu.addEventListener("click", (event) => {
+  const item = event.target.closest("a, button");
+  if (!item) return;
+  const action = item.dataset.moreAction;
+  closeMobileMoreMenu();
+  if (!action) return;
+  if (action === "notifications") notificationButton.click();
+  if (action === "theme") themeButton.click();
+  if (action === "language") languageButton.click();
+  if (action === "install") installButton.click();
+});
+
+document.addEventListener("click", (event) => {
+  if (!event.composedPath().includes(mobileMoreMenu) &&
+      !event.composedPath().includes(moreMenuButton)) closeMobileMoreMenu();
+});
+
+if ("IntersectionObserver" in window) {
+  const navigationObserver = new IntersectionObserver((entries) => {
+    const visibleSections = entries
+      .filter((entry) => entry.isIntersecting)
+      .sort((first, second) => first.boundingClientRect.top - second.boundingClientRect.top);
+    if (visibleSections.length) setActiveNavigation(visibleSections[0].target.id);
+  }, { rootMargin: "-18% 0px -68% 0px", threshold: [0, 0.2, 0.45] });
+  ["top", "library", "favorites", "planner"].forEach((id) => {
+    const section = document.getElementById(id);
+    if (section) navigationObserver.observe(section);
+  });
+}
+
+window.addEventListener("resize", () => setActiveNavigation(activeNavigationSection));
+searchInput.addEventListener("input", renderFiles);
+pdfViewerFrame.addEventListener("load", () => { pdfViewerLoading.hidden = true; });
+pdfViewerClose.addEventListener("click", () => pdfViewer.close());
+pdfViewer.addEventListener("click", (event) => {
+  if (event.target === pdfViewer) pdfViewer.close();
+});
+pdfViewer.addEventListener("close", () => {
+  pdfViewerFrame.src = "about:blank";
+  pdfViewerLoading.hidden = false;
+});
+pdfViewerFullscreen.addEventListener("click", () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  } else if (pdfViewer.requestFullscreen) {
+    pdfViewer.requestFullscreen().catch(() => showToast(currentText().downloadFailed));
+  }
 });
 languageButton.addEventListener("click", () =>
   setLanguage(language === "ar" ? "en" : "ar"),
@@ -1010,7 +1785,9 @@ enablePushButton.addEventListener("click", async () => {
     showToast(currentText().pushEnableSuccess);
   } catch (error) {
     enablePushButton.disabled = false;
-    showToast(error.message || currentText().pushUnavailable);
+    showToast(error.name === "FunctionsFetchError"
+      ? currentText().pushConnectionFailed
+      : error.message || currentText().pushUnavailable);
   }
 });
 document.addEventListener("click", (event) => {
@@ -1021,7 +1798,10 @@ document.addEventListener("click", (event) => {
   ) toggleNotificationPanel(false);
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") toggleNotificationPanel(false);
+  if (event.key === "Escape") {
+    toggleNotificationPanel(false);
+    closeMobileMoreMenu();
+  }
 });
 categoryScrollLeft.addEventListener("click", () => scrollCategoryRail("left"));
 categoryScrollRight.addEventListener("click", () => scrollCategoryRail("right"));

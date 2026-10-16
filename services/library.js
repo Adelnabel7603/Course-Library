@@ -9,6 +9,7 @@ export async function getPublicLibrary() {
     { data: categories, error: categoriesError },
     { data: files, error: filesError },
     notificationsWithImage,
+    homepageSectionsResult,
   ] = await Promise.all([
       client.from("categories").select("id, name_ar, name_en, parent_id, is_active, is_coming_soon, position").eq("is_active", true).order("position"),
       client
@@ -23,10 +24,22 @@ export async function getPublicLibrary() {
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(50),
+      client
+        .from("homepage_sections")
+        .select("id, position, is_visible")
+        .order("position"),
     ]);
 
   if (categoriesError) throw categoriesError;
   if (filesError) throw filesError;
+  let homepageSections = [];
+  if (homepageSectionsResult.error) {
+    if (!new Set(["42P01", "PGRST205"]).has(homepageSectionsResult.error.code)) {
+      throw homepageSectionsResult.error;
+    }
+  } else {
+    homepageSections = homepageSectionsResult.data;
+  }
 
   let notifications = notificationsWithImage.data;
   if (notificationsWithImage.error) {
@@ -96,6 +109,7 @@ export async function getPublicLibrary() {
   );
   return {
     categories,
+    homepageSections,
     notifications: notifications.map((notification) => ({
       ...notification,
       imageUrl: notification.image_path

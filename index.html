@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#153f38" />
+    <meta name="theme-color" content="#17264b" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <meta
       name="description"
       content="مكتبة المقررات — ملفات المحاضرات والمراجعة في مكان واحد."
     />
-    <link rel="canonical" href="https://adelnabel7603.github.io/Course-Library/" />
+    <link rel="canonical" href="https://course-library-alpha.vercel.app/" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="ar_EG" />
     <meta property="og:site_name" content="مكتبة المقررات" />
@@ -18,10 +18,10 @@
       property="og:description"
       content="ملفات المحاضرات والمراجعة في مكان واحد. تصفّح الملفات وافتحها أو نزّلها بسهولة."
     />
-    <meta property="og:url" content="https://adelnabel7603.github.io/Course-Library/" />
+    <meta property="og:url" content="https://course-library-alpha.vercel.app/" />
     <meta
       property="og:image"
-      content="https://adelnabel7603.github.io/Course-Library/og-image.png"
+      content="https://course-library-alpha.vercel.app/og-image.png"
     />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
@@ -38,7 +38,7 @@
     />
     <meta
       name="twitter:image"
-      content="https://adelnabel7603.github.io/Course-Library/og-image.png"
+      content="https://course-library-alpha.vercel.app/og-image.png"
     />
     <title>مكتبة المقررات</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
@@ -58,6 +58,12 @@
           <span class="brand-mark" aria-hidden="true">م</span>
           <span data-text="brand">مكتبة المقررات</span>
         </a>
+
+        <nav class="desktop-section-nav" aria-label="أقسام المكتبة">
+          <a href="#library" data-nav-section="library" data-text="navCourses">المواد</a>
+          <a href="#favorites" data-nav-section="favorites" data-text="navFavorites">المفضلة</a>
+          <a href="#planner" data-nav-section="planner" data-text="navStudy">المذاكرة</a>
+        </nav>
 
         <div class="toolbar">
           <div class="notification-menu">
@@ -80,7 +86,7 @@
             <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4 4 4" /><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" /></svg>
             <span data-text="install">تثبيت التطبيق</span>
           </button>
-          <a class="outline-button admin-link" href="./admin/login.html">
+          <a class="outline-button admin-link" href="./admin/login.html" aria-label="الإدارة" title="الإدارة">
             <span aria-hidden="true">✎</span>
             <span data-text="admin">الإدارة</span>
           </a>
@@ -102,58 +108,138 @@
       <div class="hero-content page-width">
         <div class="hero-copy">
           <p class="eyebrow" data-text="eyebrow">ملفات المحاضرات والمراجعة</p>
-          <h1 data-text="headline">كل مادتك، في مكان واحد.</h1>
+          <h1 data-text="headline">خطوتك الدراسية التالية تبدأ من هنا.</h1>
           <p class="hero-description" data-text="description">
-            تصفّح الملفات وافتحها أو نزّلها بسهولة.
+            موادك وملفاتك وخطة مذاكرتك، مرتبة لتصل إلى ما تحتاجه بسرعة.
           </p>
+          <div class="hero-actions">
+            <a class="hero-action hero-action-primary" href="#library" data-text="browseCourses">تصفّح المواد</a>
+            <a class="hero-action hero-action-secondary" href="#planner" data-text="startPlanning">خطط لمذاكرتك</a>
+          </div>
         </div>
-        <div class="total-card" aria-label="عدد الملفات">
-          <strong id="total-count">0</strong>
-          <span data-text="pdfFiles">ملف</span>
+        <div class="hero-visual" aria-label="إحصاءات المكتبة">
+          <img src="./app-icon-192.png" alt="" width="88" height="88" />
+          <div class="hero-stat"><strong id="total-count">0</strong><span data-text="pdfFiles">ملف</span></div>
+          <div class="hero-stat"><strong id="subject-count">6</strong><span data-text="subjects">مادة</span></div>
         </div>
       </div>
     </header>
 
     <main class="page-width main-content">
-      <section class="controls" aria-label="البحث والتصنيف">
-        <div class="category-filter-rail">
-          <button
-            class="category-scroll-button category-scroll-left"
-            id="category-scroll-left"
-            type="button"
-            aria-label="تمرير التصنيفات إلى اليسار"
-            data-aria-label="scrollCategoriesLeft"
-            aria-controls="category-list"
-            hidden
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
-          </button>
-          <div class="category-list" id="category-list" aria-label="تصفية حسب المادة"></div>
-          <button
-            class="category-scroll-button category-scroll-right"
-            id="category-scroll-right"
-            type="button"
-            aria-label="تمرير التصنيفات إلى اليمين"
-            data-aria-label="scrollCategoriesRight"
-            aria-controls="category-list"
-            hidden
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
-          </button>
+    <div class="personal-grid">
+      <section class="personal-panel" id="favorites" aria-labelledby="favorites-heading">
+        <div class="personal-heading">
+          <div><p class="section-kicker" data-text="yourLibrary">مساحتك</p><h2 id="favorites-heading" data-text="favorites">المفضلة</h2></div>
+          <span class="personal-count" id="favorites-count">0</span>
         </div>
-        <label class="search-box">
-          <span aria-hidden="true">⌕</span>
-          <input
-            id="search-input"
-            type="search"
-            autocomplete="off"
-            data-placeholder="searchPlaceholder"
-            placeholder="ابحث باسم الملف..."
-          />
-        </label>
+          <ul class="personal-file-list" id="favorites-list"></ul>
+          <p class="personal-empty" id="favorites-empty" data-text="noFavorites">أضف ملفاتك المهمة إلى المفضلة لتصل إليها هنا.</p>
+        </section>
+        <section class="personal-panel" id="recently-opened" aria-labelledby="recent-heading">
+          <div class="personal-heading">
+            <div><p class="section-kicker" data-text="continueLearning">متابعة</p><h2 id="recent-heading" data-text="recentFiles">آخر ما فتحته</h2></div>
+            <span class="personal-count" id="recent-count">0</span>
+          </div>
+          <ul class="personal-file-list" id="recent-list"></ul>
+          <p class="personal-empty" id="recent-empty" data-text="noRecentFiles">ستظهر الملفات التي تفتحها هنا.</p>
+        </section>
+      </div>
+
+      <div class="personal-grid curated-grid">
+        <section class="personal-panel" id="latest-files" aria-labelledby="latest-heading" hidden>
+          <div class="personal-heading">
+            <div><p class="section-kicker" data-text="newArrivals">أضيفت مؤخرًا</p><h2 id="latest-heading" data-text="latestFiles">أحدث الملفات</h2></div>
+            <span class="personal-count" id="latest-count">0</span>
+          </div>
+          <ul class="personal-file-list" id="latest-list"></ul>
+        </section>
+        <section class="personal-panel" id="popular-files" aria-labelledby="popular-heading" hidden>
+          <div class="personal-heading">
+            <div><p class="section-kicker" data-text="recordedUsage">تنزيلات مسجلة</p><h2 id="popular-heading" data-text="popularFiles">الأكثر تنزيلًا</h2></div>
+            <span class="personal-count" id="popular-count">0</span>
+          </div>
+          <ul class="personal-file-list" id="popular-list"></ul>
+        </section>
+      </div>
+
+      <section class="planner-panel" id="planner" aria-labelledby="planner-heading">
+        <div class="planner-heading">
+          <div><p class="section-kicker" data-text="buildYourRoutine">خطوة بخطوة</p><h2 id="planner-heading" data-text="studyPlanner">خطة المذاكرة</h2></div>
+          <span class="local-data-note" data-text="localPlannerNote">محفوظة على هذا الجهاز</span>
+        </div>
+        <form class="study-form" id="study-task-form">
+          <label class="study-title-field"><span data-text="taskName">المهمة</span><input name="title" maxlength="140" required data-placeholder="taskPlaceholder" placeholder="مثال: مراجعة المحاضرة الثالثة" /></label>
+          <label><span data-text="subjectOptional">المادة (اختياري)</span><select name="category_id" id="study-category"><option value="">كل المواد</option></select></label>
+          <label><span data-text="dueDate">الموعد</span><input name="due_date" type="date" /></label>
+          <label><span data-text="taskPriority">الأولوية</span><select name="priority"><option value="low" data-text="priorityLow">منخفضة</option><option value="normal" selected data-text="priorityNormal">عادية</option><option value="high" data-text="priorityHigh">عالية</option></select></label>
+          <button class="hero-action-primary study-add-button" type="submit"><span aria-hidden="true">＋</span><span data-text="addTask">أضف مهمة</span></button>
+        </form>
+        <div class="planner-content">
+          <div class="study-task-area">
+            <div class="study-list-heading"><h3 data-text="upcomingTasks">المهام القادمة</h3><span id="study-summary"></span></div>
+            <ul class="study-task-list" id="study-task-list"></ul>
+            <p class="personal-empty" id="study-empty" data-text="noTasks">أضف مهمة صغيرة لتبدأ خطتك.</p>
+          </div>
+          <div class="focus-timer" aria-labelledby="timer-heading">
+            <p class="section-kicker" data-text="focusSession">جلسة تركيز</p>
+            <h3 id="timer-heading" data-text="focusTimer">مؤقت المذاكرة</h3>
+            <div class="timer-duration-control">
+              <span data-text="durationLabel">مدة الجلسة</span>
+              <div class="timer-duration-inputs">
+                <label class="timer-duration-input"><input id="study-duration-hours" type="number" inputmode="numeric" min="0" max="23" step="1" value="0" aria-label="الساعات" data-aria-label="durationHoursInput" /><span data-text="durationHours">ساعة</span></label>
+                <label class="timer-duration-input"><input id="study-duration-minutes" type="number" inputmode="numeric" min="0" max="59" step="1" value="25" aria-label="الدقائق" data-aria-label="durationMinutesInput" /><span data-text="durationMinutes">دقيقة</span></label>
+              </div>
+            </div>
+            <output class="timer-display" id="study-timer-display" aria-live="off">25:00</output>
+            <div class="timer-actions">
+              <button id="timer-start" type="button" data-text="timerStart">ابدأ</button>
+              <button id="timer-pause" type="button" data-text="timerPause" disabled>إيقاف مؤقت</button>
+              <button id="timer-reset" type="button" data-text="timerReset">إنهاء الجلسة</button>
+            </div>
+            <p class="session-total"><span data-text="studyMinutes">دقائق مسجلة</span><strong id="study-session-total">0</strong></p>
+            <p class="timer-status" id="study-timer-status" role="status" aria-live="polite" hidden></p>
+          </div>
+        </div>
       </section>
 
       <section class="library" id="library" aria-labelledby="library-heading">
+          <section class="controls" aria-label="البحث والتصنيف">
+            <div class="category-filter-rail">
+              <button
+                class="category-scroll-button category-scroll-left"
+                id="category-scroll-left"
+                type="button"
+                aria-label="تمرير التصنيفات إلى اليسار"
+                data-aria-label="scrollCategoriesLeft"
+                aria-controls="category-list"
+                hidden
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
+              </button>
+              <div class="category-list" id="category-list" aria-label="تصفية حسب المادة"></div>
+              <button
+                class="category-scroll-button category-scroll-right"
+                id="category-scroll-right"
+                type="button"
+                aria-label="تمرير التصنيفات إلى اليمين"
+                data-aria-label="scrollCategoriesRight"
+                aria-controls="category-list"
+                hidden
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+              </button>
+            </div>
+            <label class="search-box">
+              <span aria-hidden="true">⌕</span>
+              <input
+                id="search-input"
+                type="search"
+                autocomplete="off"
+                data-placeholder="searchPlaceholder"
+                placeholder="ابحث باسم الملف..."
+              />
+            </label>
+          </section>
         <div class="section-heading">
           <h2 id="library-heading" data-text="filesHeading">الملفات</h2>
           <span id="result-count" aria-live="polite"></span>
@@ -167,28 +253,50 @@
       <span data-text="brand">مكتبة المقررات</span>
       <span id="footer-count"></span>
     </footer>
-    <nav class="mobile-toolbar" data-aria-label="quickNavigation" aria-label="التنقل السريع">
-      <button type="button" data-scroll="#top" data-aria-label="navHome" aria-label="الرئيسية">
+    <nav class="mobile-toolbar" id="mobile-navigation" data-aria-label="quickNavigation" aria-label="التنقل السريع">
+      <span class="mobile-nav-indicator" id="mobile-nav-indicator" aria-hidden="true"></span>
+      <button type="button" data-nav-target="top" aria-current="location" data-aria-label="navHome" aria-label="الرئيسية">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1z" /></svg>
         <span data-text="navHome">الرئيسية</span>
       </button>
-      <button type="button" data-scroll="#search-input" data-aria-label="navSearch" aria-label="البحث">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 5 5" /></svg>
-        <span data-text="navSearch">بحث</span>
+      <button type="button" data-nav-target="favorites" data-aria-label="navFavorites" aria-label="المفضلة">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z" /></svg>
+        <span data-text="navFavorites">المفضلة</span>
       </button>
-      <button class="mobile-toolbar-main" type="button" data-scroll="#library" data-aria-label="navFiles" aria-label="الملفات">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5z" /><path d="M14 3v5h5M8 13h8M8 17h8" /></svg>
-        <span data-text="navFiles">الملفات</span>
+      <button type="button" data-nav-target="planner" data-aria-label="navStudy" aria-label="المذاكرة">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4m10-4v4M3 10h18m-13 4h3m-3 3h7" /></svg>
+        <span data-text="navStudy">المذاكرة</span>
       </button>
-      <button type="button" data-scroll="#category-list" data-aria-label="navCategories" aria-label="التصنيفات">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16" /><circle cx="8" cy="5" r="1" /><circle cx="14" cy="12" r="1" /><circle cx="10" cy="19" r="1" /></svg>
-        <span data-text="navCategories">تصنيفات</span>
+      <button type="button" data-nav-target="library" data-aria-label="navCourses" aria-label="المواد">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z" /><path d="M4 5.5v13A2.5 2.5 0 0 1 6.5 16H20M8 7h8M8 10h6" /></svg>
+        <span data-text="navCourses">المواد</span>
       </button>
-      <a href="./admin/login.html" data-aria-label="admin" aria-label="الإدارة">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="m16 5 3 3M10 14l8.6-8.6a2.1 2.1 0 0 1 3 3L13 17l-4 1z" /></svg>
-        <span data-text="admin">الإدارة</span>
-      </a>
+      <button type="button" id="more-menu-button" aria-expanded="false" aria-controls="mobile-more-menu" data-aria-label="navMore" aria-label="المزيد">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        <span data-text="navMore">المزيد</span>
+      </button>
     </nav>
+    <div class="mobile-more-menu" id="mobile-more-menu" hidden>
+      <a href="#favorites" data-text="navFavorites">المفضلة</a>
+      <button type="button" data-more-action="notifications" data-text="notifications">الإشعارات</button>
+      <button type="button" data-more-action="theme" data-text="darkMode">الوضع الليلي</button>
+      <button type="button" data-more-action="language" data-text="language">English</button>
+      <button type="button" data-more-action="install" data-text="install">تثبيت التطبيق</button>
+      <a href="./admin/login.html" data-text="admin">الإدارة</a>
+    </div>
+    <dialog class="pdf-viewer" id="pdf-viewer" aria-labelledby="pdf-viewer-title">
+      <div class="pdf-viewer-header">
+        <h2 id="pdf-viewer-title"></h2>
+        <div class="pdf-viewer-actions">
+          <a id="pdf-viewer-open-original" target="_blank" rel="noopener" data-text="pdfNewTab">فتح في تبويب جديد</a>
+          <a id="pdf-viewer-download" data-text="download">تنزيل</a>
+          <button id="pdf-viewer-fullscreen" type="button" aria-label="ملء الشاشة" data-aria-label="fullscreen" title="ملء الشاشة">⛶</button>
+          <button id="pdf-viewer-close" type="button" aria-label="إغلاق العارض" data-aria-label="closeViewer" title="إغلاق العارض">×</button>
+        </div>
+      </div>
+      <p class="pdf-viewer-loading" id="pdf-viewer-loading" role="status" data-text="pdfLoading">جارٍ فتح الملف…</p>
+      <iframe id="pdf-viewer-frame" title="عارض PDF" allowfullscreen></iframe>
+    </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <section class="app-update-prompt" id="app-update-prompt" role="status" aria-live="polite" hidden>
       <span data-text="updateAvailable">تم تحديث التطبيق. حدّث الصفحة لتشغيل النسخة الجديدة.</span>

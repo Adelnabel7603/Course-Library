@@ -1,7 +1,8 @@
-const CACHE_NAME = "course-library-v7";
+const CACHE_NAME = "course-library-v8";
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./offline.html",
   "./styles.css",
   "./script.js",
   "./config.js",
@@ -63,7 +64,10 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(async () => (await caches.match(request)) || caches.match("./index.html")),
+        .catch(async () =>
+          (await caches.match(request)) ||
+          (await caches.match("./index.html")) ||
+          caches.match("./offline.html")),
     );
     return;
   }

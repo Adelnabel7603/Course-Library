@@ -13,10 +13,12 @@ The existing public library remains available from its bundled files until the S
    ```
 
 5. Copy the project's Project URL and publishable (or legacy anon/public) key into `config.js`. These are intended for browser use with the provided RLS policies; never use or publish a secret or `service_role` key.
-6. Publish updates to the GitHub Pages source branch (`main`). The existing Pages deployment publishes each push automatically; its URL (`https://adelnabel7603.github.io/Course-Library/`) stays unchanged as long as the repository name remains `Course-Library`. Use the deployed HTTPS address or a local web server such as VS Code Live Server; do not open `index.html` directly as a `file://` URL, because browsers block JavaScript modules there and the controls will not work. Open `<your-site-url>/admin/login.html` and sign in. The dashboard checks the administrator allowlist and database policies protect every write operation.
+6. Publish website updates through the configured hosting project. The current production URL is `https://course-library-alpha.vercel.app/`. Use the deployed HTTPS address or a local web server such as VS Code Live Server; do not open `index.html` directly as a `file://` URL, because browsers block JavaScript modules there and the controls will not work. Open `<your-site-url>/admin/login.html` and sign in. The dashboard checks the administrator allowlist and database policies protect every write operation.
 7. On the dashboard, select the existing `legacy-pdfs` folder and click **رفع الملفات الحالية** to copy all 14 existing PDFs into persistent storage and add their current categories and metadata to the database.
 
 The public library loads active categories, published files, and notifications from Supabase and listens for changes. New categories can optionally be placed inside an existing category; child categories appear nested under their parent and can be expanded or collapsed. The **الكل** view groups files into expandable category sections. Run `database/schema.sql` in the Supabase SQL Editor for a new database. For an existing database, run `database/notifications-migration.sql` if not already applied, then run `database/library-enhancements-migration.sql`; these add notification attachments and the persistent “new” marker without changing existing records. The library-files storage bucket is private; visitors receive temporary signed links only for published files, covers, and attachments of active notifications. Notification images remain limited to 10 MB each; multiple notification attachments and library files are limited to 1 GB per file, and cover images to 50 MB. The dashboard supports multiple PDF, Office, text, image, and video files in one upload with per-file names, descriptions, categories, visibility, and optional covers. Files over 6 MB use resumable uploads, images are previewed, and videos play in the public library. The Supabase project's plan may impose a lower maximum upload size.
+
+For existing databases, run `database/homepage-sections-migration.sql` after the existing database migrations to enable administrator-controlled homepage group ordering and visibility.
 
 ### Notifications
 
@@ -26,13 +28,13 @@ To configure device notifications:
 
 1. Generate a VAPID key pair on a trusted computer with `npx web-push generate-vapid-keys`. Keep the private key secret; never put it in `config.js` or commit it.
 2. Set the public key as `vapidPublicKey` in `config.js`.
-3. Install and authenticate the Supabase CLI, then set server-only secrets (replace the example origin/URL with the deployed site's exact origin and base URL):
+3. Install and authenticate the Supabase CLI, then update only the origin-related server secrets. `APP_ORIGIN` must be the exact browser origin with no path or trailing slash; the current production origin is `https://course-library-alpha.vercel.app`. `SITE_URL` is the full site URL and must have the same origin. The functions intentionally allow only this one origin:
 
    ```sh
-   supabase secrets set APP_ORIGIN=https://adelnabel7603.github.io SITE_URL=https://adelnabel7603.github.io/Course-Library/ VAPID_SUBJECT=mailto:admin@example.com VAPID_PUBLIC_KEY=YOUR_PUBLIC_KEY VAPID_PRIVATE_KEY=YOUR_PRIVATE_KEY
+   supabase secrets set --project-ref megmfomragunbfxtyglj APP_ORIGIN=https://course-library-alpha.vercel.app SITE_URL=https://course-library-alpha.vercel.app/
    ```
 
-   Supabase provides `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to deployed Edge Functions. Do not copy the service-role key into browser code.
+   This leaves existing VAPID secrets unchanged. If VAPID has not been configured yet, set `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, and `VAPID_PRIVATE_KEY` separately using the subject and matching key pair generated in step 1; never replace an existing pair just to fix the origin. If the site is served from a different production hostname, use that exact origin and URL instead. Supabase provides `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to deployed Edge Functions. Do not copy the service-role key into browser code.
 4. Deploy both Edge Functions from the project root:
 
    ```sh
