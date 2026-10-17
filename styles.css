@@ -2403,34 +2403,48 @@ body.dark .category-scroll-button:not(:disabled):hover {
 .calendar-day-empty { margin: 0; color: var(--muted); font-size: .7rem; }
 
 .personal-reminders {
+  position: relative;
   display: grid;
-  gap: 11px;
+  gap: 13px;
+  overflow: hidden;
   margin-top: 8px;
-  padding: 15px;
-  border: 1px solid color-mix(in srgb, var(--green-strong) 23%, var(--line));
-  border-radius: 14px;
+  padding: 17px;
+  border: 1px solid color-mix(in srgb, var(--green-strong) 30%, var(--line));
+  border-radius: 16px;
   background: linear-gradient(140deg,
-    color-mix(in srgb, var(--green-soft) 48%, var(--surface)),
-    color-mix(in srgb, var(--surface) 95%, #d8eaf0));
+    color-mix(in srgb, var(--green-soft) 65%, var(--surface)),
+    color-mix(in srgb, var(--surface) 92%, #d8eaf0));
+  box-shadow: 0 10px 26px rgb(21 63 56 / 8%), inset 0 1px 0 rgb(255 255 255 / 76%);
+}
+
+.personal-reminders::before {
+  position: absolute;
+  inset-block: 18px;
+  inset-inline-start: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #4e9a7a, #76adc0);
+  content: "";
 }
 
 .personal-reminders-heading .section-kicker { margin-bottom: 2px; }
 .personal-reminders-heading .local-data-note { flex: 0 0 auto; }
+.personal-reminders-heading h3 { line-height: 1.45; }
 .student-auth-form,
 .student-reminder-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
-  gap: 9px;
+  gap: 11px;
 }
 
 .student-auth-form > label:not(.student-signup-toggle),
 .student-reminder-form > label {
   display: grid;
   min-width: 0;
-  gap: 5px;
+  gap: 6px;
   color: var(--muted);
-  font-size: .76rem;
+  font-size: .79rem;
   font-weight: 700;
 }
 
@@ -2438,38 +2452,123 @@ body.dark .category-scroll-button:not(:disabled):hover {
 .student-reminder-form input {
   width: 100%;
   min-width: 0;
-  min-height: 40px;
-  padding: 7px 10px;
+  min-height: 44px;
+  padding: 9px 12px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 10px;
   color: var(--ink);
   background: var(--surface);
+  box-shadow: inset 0 1px 2px rgb(15 45 35 / 4%);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.student-auth-form input:not([type="checkbox"]):focus,
+.student-reminder-form input:focus {
+  border-color: #6d9b83;
+  box-shadow: 0 0 0 3px rgb(67 125 91 / 13%);
+  outline: none;
 }
 
 .student-signup-toggle {
   display: flex;
-  min-height: 40px;
+  min-height: 44px;
   align-items: center;
-  gap: 7px;
-  color: var(--muted);
+  gap: 9px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--green-strong) 18%, var(--line));
+  border-radius: 10px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 74%, var(--green-soft));
   font-size: .78rem;
+  cursor: pointer;
 }
 
-.student-signup-toggle input { accent-color: var(--green-strong); }
+.student-signup-toggle input {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #dce4dd;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.student-signup-toggle input::after {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+  content: "";
+  transition: inset-inline-start 150ms ease;
+}
+
+.student-signup-toggle input:checked { border-color: var(--green-strong); background: var(--green-strong); }
+.student-signup-toggle input:checked::after { inset-inline-start: 18px; }
+.student-signup-toggle:focus-within { outline: 2px solid color-mix(in srgb, #438c6a 55%, transparent); outline-offset: 2px; }
 .student-auth-form > button,
-.student-reminder-form > button { min-height: 40px; font-size: .82rem; }
+.student-reminder-form > button { min-height: 44px; border-radius: 10px; font-size: .84rem; }
+.student-auth-form > #student-auth-submit { width: 100%; box-shadow: 0 6px 15px rgb(21 63 56 / 18%); }
+.student-session-panel > #student-enable-push {
+  min-height: 44px;
+  border-color: color-mix(in srgb, var(--green-strong) 30%, var(--line));
+  border-radius: 10px;
+  color: var(--green-strong);
+  background: color-mix(in srgb, var(--green-soft) 70%, var(--surface));
+  font-weight: 700;
+}
+.student-session-heading .study-task-delete {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #eed7d4;
+  border-radius: 10px;
+  color: #963b33;
+  background: #fff8f7;
+}
 .calendar-account-status { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: .8rem; }
-.calendar-account-status.is-error { color: #a43f36; }
+.calendar-account-status.is-error { padding: 8px 10px; border-radius: 9px; color: #a43f36; background: #fff0ed; }
 .student-session-panel { display: grid; gap: 10px; }
-.student-session-heading { justify-content: flex-start; color: var(--muted); font-size: .82rem; }
+.student-session-heading { min-height: 42px; justify-content: flex-start; color: var(--muted); font-size: .82rem; }
 .student-session-heading button { margin-inline-start: auto; }
-.student-reminder-form { padding-top: 10px; border-top: 1px solid var(--line); }
+.student-reminder-form { padding-top: 12px; border-top: 1px solid var(--line); }
 .student-reminder-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .student-reminder-item { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .student-reminder-item div { display: grid; min-width: 0; gap: 2px; }
 .student-reminder-item strong { overflow-wrap: anywhere; font-size: .82rem; }
 .student-reminder-item time,
 .student-reminder-item span { color: var(--muted); font-size: .72rem; }
+
+body.dark .personal-reminders {
+  border-color: #456255;
+  background: linear-gradient(140deg, #20392f, var(--surface));
+  box-shadow: 0 12px 28px rgb(0 0 0 / 18%), inset 0 1px 0 rgb(255 255 255 / 7%);
+}
+
+body.dark .student-auth-form input:not([type="checkbox"]),
+body.dark .student-reminder-form input {
+  border-color: var(--line);
+  background: #151d1a;
+}
+
+body.dark .student-signup-toggle {
+  border-color: var(--line);
+  color: var(--ink);
+  background: #1d3029;
+}
+
+body.dark .student-signup-toggle input { border-color: #506457; background: #3c4c42; }
+body.dark .student-signup-toggle input:checked { background: #3d795b; }
+body.dark .student-session-panel > #student-enable-push { border-color: #456255; color: #dcece2; background: #263f36; }
+body.dark .student-session-heading .study-task-delete { border-color: #63403d; color: #ffc0b8; background: #3b2927; }
+body.dark .calendar-account-status.is-error { color: #ffc0b8; background: #3b2927; }
 
 .file-card {
   border-radius: 10px;
@@ -2778,7 +2877,7 @@ body.dark .calendar-filters { border-color: var(--line); background: #151d1a; }
     scroll-snap-type: inline proximity;
   }
   .calendar-day { min-height: 148px; scroll-snap-align: start; }
-  .personal-reminders { padding: 12px; }
+  .personal-reminders { gap: 12px; padding: 15px 12px; }
   .personal-reminders-heading { align-items: flex-start; }
   .student-auth-form,
   .student-reminder-form { grid-template-columns: 1fr; }
