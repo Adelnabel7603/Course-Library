@@ -1,4 +1,4 @@
-const CACHE_NAME = "course-library-v8";
+const CACHE_NAME = "course-library-v9";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -12,11 +12,13 @@ const APP_SHELL = [
   "./app-icon-512.png",
   "./services/legacy-catalog.js",
   "./services/library.js",
+  "./services/student-calendar.js",
   "./services/supabase.js",
   "./admin/login.html",
   "./admin/login.js",
   "./admin/dashboard.html",
   "./admin/dashboard.js",
+  "./admin/calendar-management.js",
   "./admin/admin.css",
 ];
 const APP_ASSETS = new Set(

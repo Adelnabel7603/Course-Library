@@ -200,6 +200,58 @@
             <p class="timer-status" id="study-timer-status" role="status" aria-live="polite" hidden></p>
           </div>
         </div>
+        <section class="study-calendar" id="study-calendar" aria-labelledby="study-calendar-heading">
+          <div class="calendar-heading">
+            <div>
+              <p class="section-kicker" data-calendar-text="calendarKicker">جدولك الدراسي</p>
+              <h3 id="study-calendar-heading" data-calendar-text="calendarTitle">المحاضرات والسكاشن والامتحانات</h3>
+            </div>
+            <div class="calendar-week-controls" aria-label="التنقل بين الأسابيع">
+              <button id="calendar-previous-week" type="button" data-calendar-aria="previousWeek" aria-label="الأسبوع السابق">‹</button>
+              <time id="calendar-week-label"></time>
+              <button id="calendar-next-week" type="button" data-calendar-aria="nextWeek" aria-label="الأسبوع التالي">›</button>
+            </div>
+          </div>
+          <div class="calendar-filters" role="group" data-calendar-aria="filterEvents" aria-label="تصفية المواعيد">
+            <button type="button" data-calendar-filter="all" aria-pressed="true" data-calendar-text="calendarAll">الكل</button>
+            <button type="button" data-calendar-filter="lecture" aria-pressed="false" data-calendar-text="calendarLectures">محاضرات</button>
+            <button type="button" data-calendar-filter="section" aria-pressed="false" data-calendar-text="calendarSections">سكاشن</button>
+            <button type="button" data-calendar-filter="exam" aria-pressed="false" data-calendar-text="calendarExams">امتحانات</button>
+          </div>
+          <p class="calendar-status" id="calendar-status" role="status" aria-live="polite" hidden></p>
+          <div class="calendar-grid" id="calendar-grid" aria-live="polite"></div>
+          <section class="personal-reminders" aria-labelledby="personal-reminders-heading">
+            <div class="personal-reminders-heading">
+              <div>
+                <p class="section-kicker" data-calendar-text="privateArea">مساحتك الخاصة</p>
+                <h3 id="personal-reminders-heading" data-calendar-text="personalReminders">تذكيراتك الشخصية</h3>
+              </div>
+              <span class="local-data-note" data-calendar-text="privateAccountNote">مرتبطة بحسابك</span>
+            </div>
+            <form class="student-auth-form" id="student-auth-form">
+              <label><span data-calendar-text="studentEmail">البريد الإلكتروني</span><input name="email" type="email" autocomplete="username" required /></label>
+              <label><span data-calendar-text="studentPassword">كلمة المرور</span><input name="password" type="password" autocomplete="current-password" minlength="8" required /></label>
+              <label class="student-signup-toggle"><input id="student-signup-mode" type="checkbox" /><span data-calendar-text="createStudentAccount">إنشاء حساب جديد</span></label>
+              <button class="hero-action-primary" id="student-auth-submit" type="submit">تسجيل الدخول</button>
+              <p class="calendar-account-status" id="student-auth-status" role="status" aria-live="polite" hidden></p>
+            </form>
+            <div class="student-session-panel" id="student-session-panel" hidden>
+              <div class="student-session-heading">
+                <span id="student-account-email"></span>
+                <button class="study-task-delete" id="student-sign-out" type="button" data-calendar-aria="signOut" aria-label="تسجيل الخروج">×</button>
+              </div>
+              <button class="secondary-button" id="student-enable-push" type="button" data-calendar-text="enableReminderPush">تفعيل تنبيهات المواعيد</button>
+              <p class="calendar-account-status" id="student-push-status" role="status" aria-live="polite"></p>
+              <form class="student-reminder-form" id="student-reminder-form">
+                <label><span data-calendar-text="reminderTitle">عنوان التذكير</span><input name="title" maxlength="140" required /></label>
+                <label><span data-calendar-text="reminderDetails">تفاصيل (اختياري)</span><input name="body" maxlength="280" /></label>
+                <label><span data-calendar-text="reminderTime">موعد التنبيه</span><input name="remind_at" type="datetime-local" required /></label>
+                <button class="hero-action-primary" type="submit" data-calendar-text="addReminder">إضافة تذكير</button>
+              </form>
+              <ul class="student-reminder-list" id="student-reminder-list"></ul>
+            </div>
+          </section>
+        </section>
       </section>
 
       <section class="library" id="library" aria-labelledby="library-heading">

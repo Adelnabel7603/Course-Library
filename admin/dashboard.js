@@ -1,5 +1,6 @@
 import { legacyCategories, legacyFiles } from "../services/legacy-catalog.js";
 import { supabaseConfig } from "../config.js";
+import { initializeCalendarManagement } from "./calendar-management.js";
 
 const isLocalPreviewHost = window.location.protocol === "file:" ||
   (window.location.protocol === "http:" &&
@@ -1850,6 +1851,7 @@ if (localFeaturePreview) {
   document.querySelector("#dashboard-message").hidden = false;
   const previewPanels = new Set([
     "homepage-sections-panel",
+    "calendar-events-panel",
     "categories-panel",
     "file-form-panel",
     "notifications-panel",
@@ -1860,6 +1862,7 @@ if (localFeaturePreview) {
   });
   document.querySelector("#logout-button").hidden = true;
   await loadData();
+  await initializeCalendarManagement({ client, localFeaturePreview, notify });
 } else if (!client) {
   message.textContent = "أكمل إعداد رابط Supabase ومفتاح anon في ملف config.js.";
   message.hidden = false;
@@ -1872,6 +1875,7 @@ if (localFeaturePreview) {
     document.querySelector("#logout-button").disabled = false;
     try {
       await loadData();
+      await initializeCalendarManagement({ client, localFeaturePreview, notify });
     } catch (error) {
       message.textContent = error.message;
       message.hidden = false;

@@ -18,7 +18,7 @@ The existing public library remains available from its bundled files until the S
 
 The public library loads active categories, published files, and notifications from Supabase and listens for changes. New categories can optionally be placed inside an existing category; child categories appear nested under their parent and can be expanded or collapsed. The **الكل** view groups files into expandable category sections. Run `database/schema.sql` in the Supabase SQL Editor for a new database. For an existing database, run `database/notifications-migration.sql` if not already applied, then run `database/library-enhancements-migration.sql`; these add notification attachments and the persistent “new” marker without changing existing records. The library-files storage bucket is private; visitors receive temporary signed links only for published files, covers, and attachments of active notifications. Notification images remain limited to 10 MB each; multiple notification attachments and library files are limited to 1 GB per file, and cover images to 50 MB. The dashboard supports multiple PDF, Office, text, image, and video files in one upload with per-file names, descriptions, categories, visibility, and optional covers. Files over 6 MB use resumable uploads, images are previewed, and videos play in the public library. The Supabase project's plan may impose a lower maximum upload size.
 
-For existing databases, run `database/homepage-sections-migration.sql` after the existing database migrations to enable administrator-controlled homepage group ordering and visibility.
+For existing databases, run `database/homepage-sections-migration.sql` after the existing database migrations to enable administrator-controlled homepage group ordering and visibility. Run `database/calendar-reminders-migration.sql` after `database/notifications-migration.sql` to add public timetable events and private student reminders.
 
 ### Notifications
 
@@ -43,6 +43,61 @@ To configure device notifications:
    ```
 
 5. For an existing database, run `database/notifications-migration.sql` if it has not been applied, followed by `database/library-enhancements-migration.sql`, in the Supabase SQL Editor. Publish the website update, then visitors open the bell and choose **تفعيل إشعارات الجهاز**. They must allow notifications on each browser/device. iOS requires a supported iOS version and the site added to the Home Screen. People who do not opt in still see new notices in the bell the next time they visit.
+
+### Calendar and student reminders
+
+Apply `database/calendar-reminders-migration.sql` after `database/notifications-migration.sql`. It creates the public timetable table, account-owned reminders, delivery de-duplication, and the private server RPC used by the scheduled sender.
+
+In Supabase **Authentication → Providers**, enable Email sign-ups and set the production site URL and redirect URL to the existing `https://course-library-alpha.vercel.app/` origin. Students create accounts from the planner; no student data is stored in browser local storage.
+
+In the administration dashboard, open **الجداول الدراسية**, download the CSV template, and import `.csv`, `.xlsx`, or `.xls`. The first worksheet is read. `lecture` and `section` rows use `weekday`, `starts_on`, and `ends_on` for a weekly recurrence; `exam` rows use `event_date`. Use 24-hour `start_time`/`end_time` values, the `Africa/Cairo` campus timezone, and the `location` field for the hall or room. Export the existing schedule before editing it so its `event_id` values can be retained on re-import.
+
+Students can create accounts in **خطوة بخطوة**. Their personal reminders are protected by Supabase Auth and row-level security, and never appear in the public calendar. A schedule reminder is sent 15 minutes before an event; a personal reminder is sent at its selected time. Each student must sign in and enable device notifications on every browser/device that should receive push alerts. If email confirmation is enabled for Supabase Auth, students must confirm their email before signing in.
+
+To deliver reminders while the site is closed, deploy the updated push registration function and the scheduled sender:
+
+```sh
+supabase functions deploy register-push
+supabase functions deploy send-push-notification
+supabase functions deploy send-scheduled-reminders
+```
+
+Generate a long random value and set it as the Edge Function secret (replace the placeholder locally):
+
+```sh
+supabase secrets set --project-ref megmfomragunbfxtyglj SCHEDULED_REMINDERS_SECRET=REPLACE_WITH_A_LONG_RANDOM_SECRET
+```
+
+Store the same secret and the scheduled-function URL in Supabase Vault, then enable the `pg_cron`, `pg_net`, and `supabase_vault` extensions and schedule the function once per minute in the SQL Editor:
+
+```sql
+create extension if not exists pg_cron with schema pg_catalog;
+create extension if not exists pg_net with schema extensions;
+create extension if not exists supabase_vault with schema vault;
+
+select vault.create_secret(
+   'https://megmfomragunbfxtyglj.supabase.co/functions/v1/send-scheduled-reminders',
+   'calendar-reminders-url'
+);
+select vault.create_secret('REPLACE_WITH_THE_SCHEDULED_REMINDERS_SECRET', 'calendar-reminders-secret');
+
+select cron.schedule(
+   'calendar-push-reminders',
+   '* * * * *',
+   $$
+      select net.http_post(
+         url := (select decrypted_secret from vault.decrypted_secrets where name = 'calendar-reminders-url'),
+         headers := jsonb_build_object(
+            'Content-Type', 'application/json',
+            'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'calendar-reminders-secret')
+         ),
+         body := '{}'::jsonb
+      );
+   $$
+);
+```
+
+Replace the placeholder only in the SQL Editor with the secret already set for the Edge Function; do not commit it. Before re-running the cron block, remove an existing job with `select cron.unschedule(jobid) from cron.job where jobname = 'calendar-push-reminders';`.
 
 To safely preview the administration features without contacting Supabase, open `admin/dashboard.html?preview=features` locally. Preview categories, file records, and announcements are stored in this browser's local storage only. Selected files are not uploaded and no device push is sent in preview mode; preview changes never affect the live site.
 

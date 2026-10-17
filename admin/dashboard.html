@@ -37,6 +37,7 @@
           <nav class="dashboard-sidebar" id="dashboard-sidebar" aria-label="أقسام الإدارة">
             <a href="#dashboard-overview" aria-current="location">نظرة عامة</a>
             <a href="#homepage-sections-panel">أقسام الصفحة الرئيسية</a>
+            <a href="#calendar-events-panel">الجداول الدراسية</a>
             <a href="#categories-panel">المواد والتصنيفات</a>
             <a href="#file-form-panel">رفع الملفات</a>
             <a href="#notifications-panel">الإشعارات والإعلانات</a>
@@ -59,6 +60,26 @@
             </div>
             <p id="homepage-section-note" class="muted" hidden></p>
             <ol id="homepage-section-list" class="homepage-section-list"></ol>
+          </section>
+
+          <section class="panel calendar-events-panel" id="calendar-events-panel">
+            <div class="panel-heading">
+              <div><h2>الجداول الدراسية</h2><p class="muted">المحاضرات والسكاشن والامتحانات</p></div>
+              <div class="calendar-import-actions">
+                <button class="secondary-button" id="calendar-template-button" type="button">تنزيل قالب CSV</button>
+                <button class="secondary-button" id="calendar-export-button" type="button">تصدير الجداول</button>
+              </div>
+            </div>
+            <form id="calendar-import-form" class="calendar-import-form">
+              <label class="calendar-import-file">
+                <span>ملف Excel أو CSV</span>
+                <input id="calendar-import-file-input" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required />
+              </label>
+              <button class="primary-button" type="submit">استيراد الجدول</button>
+              <p id="calendar-import-status" class="upload-status" role="status" aria-live="polite" hidden></p>
+            </form>
+            <p class="calendar-events-count muted" id="calendar-events-count"></p>
+            <ul class="calendar-event-list" id="calendar-event-list"></ul>
           </section>
 
       <section class="panel" id="migration-panel">

@@ -6,6 +6,7 @@ import {
   subscribeToLibrary,
 } from "./services/library.js";
 import { isSupabaseConfigured, supabaseConfig } from "./config.js";
+import { initializeStudentCalendar } from "./services/student-calendar.js";
 
 const files = legacyFiles;
 
@@ -1965,3 +1966,5 @@ if (localFeaturePreview) {
       showToast(error.message || "تعذر تحميل المكتبة من قاعدة البيانات.");
     });
 }
+
+  void initializeStudentCalendar({ preview: localFeaturePreview, notify: showToast });

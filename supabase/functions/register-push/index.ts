@@ -26,7 +26,48 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const { subscription } = await request.json();
+    const { subscription, unsubscribe, endpoint: requestedEndpoint } = await request.json();
+    const url = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !serviceKey) throw new Error("Supabase server configuration is missing.");
+    const client = createClient(url, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const authorization = request.headers.get("authorization") || "";
+    const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (authorization && !token) {
+      return respond({ error: "Invalid account authentication." }, 401, origin);
+    }
+    let userId: string | null = null;
+    if (token) {
+      const { data, error } = await client.auth.getUser(token);
+      if (!error && data.user) {
+        userId = data.user.id;
+      } else if (unsubscribe) {
+        return respond({ error: "Invalid account authentication." }, 401, origin);
+      }
+    }
+
+    if (unsubscribe) {
+      if (!userId || typeof requestedEndpoint !== "string") {
+        return respond({ error: "Account authentication is required to unlink this device." }, 401, origin);
+      }
+      const endpointUrl = new URL(requestedEndpoint);
+      if (endpointUrl.protocol !== "https:" || ![
+        "fcm.googleapis.com",
+        "updates.push.services.mozilla.com",
+        "web.push.apple.com",
+      ].includes(endpointUrl.hostname) && !endpointUrl.hostname.endsWith(".notify.windows.com")) {
+        return respond({ error: "Invalid push subscription endpoint." }, 400, origin);
+      }
+      const { error } = await client.from("push_subscriptions")
+        .update({ user_id: null, updated_at: new Date().toISOString() })
+        .eq("endpoint", requestedEndpoint)
+        .eq("user_id", userId);
+      if (error) throw error;
+      return respond({ unlinked: true }, 200, origin);
+    }
+
     const endpoint = subscription?.endpoint;
     const keys = subscription?.keys;
     let endpointUrl: URL | null = null;
@@ -59,16 +100,11 @@ Deno.serve(async (request) => {
       return respond({ error: "Invalid push subscription." }, 400, origin);
     }
 
-    const url = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!url || !serviceKey) throw new Error("Supabase server configuration is missing.");
-    const client = createClient(url, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
     const { error } = await client.from("push_subscriptions").upsert({
       endpoint,
       p256dh: keys.p256dh,
       auth_secret: keys.auth,
+      user_id: userId,
       user_agent: (request.headers.get("user-agent") || "").slice(0, 500),
       updated_at: new Date().toISOString(),
     });
