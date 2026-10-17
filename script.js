@@ -1030,8 +1030,24 @@ function toggleNotificationPanel(forceOpen) {
   const shouldOpen = forceOpen ?? notificationPanel.hidden;
   notificationPanel.hidden = !shouldOpen;
   notificationButton.setAttribute("aria-expanded", String(shouldOpen));
-  if (shouldOpen) updatePushButton();
+  if (shouldOpen) {
+    positionNotificationArrow();
+    updatePushButton();
+  }
 }
+
+function positionNotificationArrow() {
+  if (notificationPanel.hidden) return;
+  const buttonBounds = notificationButton.getBoundingClientRect();
+  const arrowCenter = buttonBounds.left + buttonBounds.width / 2 - notificationPanel.offsetLeft;
+  const arrowLeft = Math.min(
+    notificationPanel.offsetWidth - 18,
+    Math.max(18, arrowCenter),
+  );
+  notificationPanel.style.setProperty("--notification-arrow-left", `${arrowLeft}px`);
+}
+
+window.addEventListener("resize", positionNotificationArrow);
 
 function decodeVapidPublicKey(key) {
   const padding = "=".repeat((4 - (key.length % 4)) % 4);

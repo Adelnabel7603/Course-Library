@@ -783,19 +783,56 @@ function createUploadEditor(file, index) {
   return editor;
 }
 
+function fileCategoryLabel(file) {
+  const category = categories.find((item) => item.id === file.category_id) || file.categories;
+  return category ? categoryPath(category) : "بلا تصنيف";
+}
+
 function renderFiles() {
   const query = fileSearch.value.trim().toLocaleLowerCase();
+  const categoryOrder = new Map(categories.map((category, index) => [category.id, index]));
   const orderedFiles = [...files].sort((a, b) =>
+    (categoryOrder.get(a.category_id) ?? Number.MAX_SAFE_INTEGER) -
+      (categoryOrder.get(b.category_id) ?? Number.MAX_SAFE_INTEGER) ||
     a.position - b.position || new Date(b.created_at) - new Date(a.created_at),
   );
   const visibleFiles = orderedFiles.filter((file) =>
-    `${file.name} ${file.description} ${file.categories?.name_ar || ""}`
+    `${file.name} ${file.description} ${fileCategoryLabel(file)}`
       .toLocaleLowerCase()
       .includes(query),
   );
   fileCount.textContent = `${visibleFiles.length} من ${files.length} ملف`;
   renderOverview();
-  fileTableBody.replaceChildren(...visibleFiles.map((file) => {
+  const visibleGroups = new Map();
+  for (const file of visibleFiles) {
+    const categoryId = file.category_id || "__uncategorized";
+    const group = visibleGroups.get(categoryId) || [];
+    group.push(file);
+    visibleGroups.set(categoryId, group);
+  }
+  const renderedRows = [];
+  let previousCategoryId;
+  visibleFiles.forEach((file) => {
+    const categoryId = file.category_id || "__uncategorized";
+    const groupFiles = visibleGroups.get(categoryId);
+    if (categoryId !== previousCategoryId) {
+      const heading = document.createElement("tr");
+      heading.className = "file-category-heading";
+      const headingCell = document.createElement("td");
+      headingCell.colSpan = 6;
+      const summary = document.createElement("div");
+      summary.className = "file-category-summary";
+      const name = document.createElement("strong");
+      name.textContent = fileCategoryLabel(file);
+      const count = document.createElement("span");
+      count.className = "file-category-count";
+      count.textContent = `${groupFiles.length} ملف`;
+      summary.append(name, count);
+      headingCell.append(summary);
+      heading.append(headingCell);
+      renderedRows.push(heading);
+      previousCategoryId = categoryId;
+    }
     const row = document.createElement("tr");
     const cells = [
       ["الملف", file.name],
@@ -809,6 +846,7 @@ function renderFiles() {
     for (const [label, value] of cells) {
       const cell = document.createElement("td");
       cell.dataset.label = label;
+      if (label === "التصنيف") cell.className = "file-category-value";
       cell.textContent = value;
       row.append(cell);
     }
@@ -883,14 +921,14 @@ function renderFiles() {
     up.className = "secondary-button small-button";
     up.textContent = "↑";
     up.setAttribute("aria-label", `تحريك ${file.name} للأعلى`);
-    const index = orderedFiles.findIndex((item) => item.id === file.id);
+    const index = groupFiles.findIndex((item) => item.id === file.id);
     up.disabled = index === 0;
     up.addEventListener("click", () => moveFile(file, -1));
     const down = document.createElement("button");
     down.className = "secondary-button small-button";
     down.textContent = "↓";
     down.setAttribute("aria-label", `تحريك ${file.name} للأسفل`);
-    down.disabled = index === orderedFiles.length - 1;
+    down.disabled = index === groupFiles.length - 1;
     down.addEventListener("click", () => moveFile(file, 1));
     const remove = document.createElement("button");
     remove.className = "danger-button small-button";
@@ -898,12 +936,13 @@ function renderFiles() {
     remove.addEventListener("click", () => deleteFile(file));
     actions.append(edit, toggle, up, down, remove);
     row.append(actions);
-    return row;
-  }));
+    renderedRows.push(row);
+  });
+  fileTableBody.replaceChildren(...renderedRows);
 }
 
 async function moveFile(file, direction) {
-  const ordered = [...files].sort((a, b) =>
+  const ordered = files.filter((item) => item.category_id === file.category_id).sort((a, b) =>
     a.position - b.position || new Date(b.created_at) - new Date(a.created_at),
   );
   const index = ordered.findIndex((item) => item.id === file.id);
@@ -912,9 +951,10 @@ async function moveFile(file, direction) {
   [ordered[index], ordered[nextIndex]] = [ordered[nextIndex], ordered[index]];
   try {
     if (localFeaturePreview) {
-      const moved = [...ordered];
-      for (const [position, item] of moved.entries()) item.position = position;
-      files = moved;
+      const positions = new Map(ordered.map((item, position) => [item.id, position]));
+      files = files.map((item) => positions.has(item.id)
+        ? { ...item, position: positions.get(item.id) }
+        : item);
       localStorage.setItem("course-library-feature-preview-files", JSON.stringify(files));
       await loadData();
       return;
@@ -1692,12 +1732,49 @@ try {
 }
 
 const adminNavigation = document.querySelector(".dashboard-sidebar");
+const adminNavigationArrows = document.querySelectorAll(".dashboard-sidebar-arrow");
+
+function updateAdminNavigationArrows() {
+  const navigationBounds = adminNavigation.getBoundingClientRect();
+  const links = [...adminNavigation.querySelectorAll("a")];
+  const canScrollLeft = links.some((link) => link.getBoundingClientRect().left < navigationBounds.left - 1);
+  const canScrollRight = links.some((link) => link.getBoundingClientRect().right > navigationBounds.right + 1);
+  adminNavigationArrows.forEach((button) => {
+    button.disabled = button.dataset.scrollDirection === "left" ? !canScrollLeft : !canScrollRight;
+  });
+}
+
+function setCurrentAdminLink(activeLink) {
+  const currentLink = adminNavigation.querySelector('a[aria-current="location"]');
+  if (currentLink === activeLink) return;
+  adminNavigation.querySelectorAll("a").forEach((link) => link.removeAttribute("aria-current"));
+  activeLink.setAttribute("aria-current", "location");
+  activeLink.scrollIntoView({
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    block: "nearest",
+    inline: "center",
+  });
+  window.requestAnimationFrame(updateAdminNavigationArrows);
+}
+
 adminNavigation.addEventListener("click", (event) => {
   const link = event.target.closest("a[href^='#']");
   if (!link) return;
-  adminNavigation.querySelectorAll("a").forEach((item) => item.removeAttribute("aria-current"));
-  link.setAttribute("aria-current", "location");
+  setCurrentAdminLink(link);
 });
+
+adminNavigationArrows.forEach((button) => {
+  button.addEventListener("click", () => {
+    const distance = Math.max(160, adminNavigation.clientWidth * 0.72);
+    const left = button.dataset.scrollDirection === "left" ? -distance : distance;
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    adminNavigation.scrollBy({ left, behavior });
+  });
+});
+
+adminNavigation.addEventListener("scroll", updateAdminNavigationArrows, { passive: true });
+window.addEventListener("resize", updateAdminNavigationArrows);
+updateAdminNavigationArrows();
 
 if ("IntersectionObserver" in window) {
   const adminSectionObserver = new IntersectionObserver((entries) => {
@@ -1706,10 +1783,9 @@ if ("IntersectionObserver" in window) {
       .sort((first, second) => first.boundingClientRect.top - second.boundingClientRect.top);
     if (!visibleSections.length) return;
     const activeHref = `#${visibleSections[0].target.id}`;
-    adminNavigation.querySelectorAll("a").forEach((link) => {
-      if (link.getAttribute("href") === activeHref) link.setAttribute("aria-current", "location");
-      else link.removeAttribute("aria-current");
-    });
+    const activeLink = [...adminNavigation.querySelectorAll("a")]
+      .find((link) => link.getAttribute("href") === activeHref);
+    if (activeLink) setCurrentAdminLink(activeLink);
   }, { rootMargin: "-16% 0px -72% 0px", threshold: [0, 0.2, 0.5] });
   document.querySelectorAll(".admin-overview, .dashboard-content > .panel").forEach((section) => {
     adminSectionObserver.observe(section);

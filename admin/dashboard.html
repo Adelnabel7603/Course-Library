@@ -32,15 +32,19 @@
       <p id="dashboard-message" class="notice" role="status" hidden></p>
 
       <div class="dashboard-layout">
-        <nav class="dashboard-sidebar" aria-label="أقسام الإدارة">
-          <a href="#dashboard-overview" aria-current="location">نظرة عامة</a>
-          <a href="#homepage-sections-panel">أقسام الصفحة الرئيسية</a>
-          <a href="#categories-panel">المواد والتصنيفات</a>
-          <a href="#file-form-panel">رفع الملفات</a>
-          <a href="#notifications-panel">الإشعارات والإعلانات</a>
-          <a href="#files-panel">مكتبة الملفات</a>
-          <a href="#migration-panel">ترحيل الملفات القديمة</a>
-        </nav>
+        <div class="dashboard-sidebar-wrap">
+          <button class="dashboard-sidebar-arrow" type="button" data-scroll-direction="left" aria-label="تمرير الأقسام لليسار" aria-controls="dashboard-sidebar">←</button>
+          <nav class="dashboard-sidebar" id="dashboard-sidebar" aria-label="أقسام الإدارة">
+            <a href="#dashboard-overview" aria-current="location">نظرة عامة</a>
+            <a href="#homepage-sections-panel">أقسام الصفحة الرئيسية</a>
+            <a href="#categories-panel">المواد والتصنيفات</a>
+            <a href="#file-form-panel">رفع الملفات</a>
+            <a href="#notifications-panel">الإشعارات والإعلانات</a>
+            <a href="#files-panel">مكتبة الملفات</a>
+            <a href="#migration-panel">ترحيل الملفات القديمة</a>
+          </nav>
+          <button class="dashboard-sidebar-arrow" type="button" data-scroll-direction="right" aria-label="تمرير الأقسام لليمين" aria-controls="dashboard-sidebar">→</button>
+        </div>
         <div class="dashboard-content">
           <section class="admin-overview" id="dashboard-overview" aria-label="إحصاءات المحتوى">
             <article><span>مواد نشطة</span><strong id="overview-category-count">0</strong></article>
