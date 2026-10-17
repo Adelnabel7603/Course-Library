@@ -176,3 +176,5 @@ $$;
 
 revoke all on function public.claim_due_calendar_pushes() from public, anon, authenticated;
 grant execute on function public.claim_due_calendar_pushes() to service_role;
+
+notify pgrst, 'reload schema';
