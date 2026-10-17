@@ -204,16 +204,29 @@ export async function initializeStudentCalendar({ preview = false, notify = () =
       for (const event of dayEvents) {
         const item = document.createElement("li");
         item.className = `calendar-event is-${event.event_type}`;
+        const details = document.createElement("details");
+        const summary = document.createElement("summary");
+        summary.className = "calendar-event-summary";
+        const title = document.createElement("strong");
+        title.textContent = event.title;
+        const arrow = document.createElement("span");
+        arrow.className = "calendar-event-arrow";
+        arrow.setAttribute("aria-hidden", "true");
+        arrow.textContent = "⌄";
+        summary.append(title, arrow);
+
+        const detailsContent = document.createElement("div");
+        detailsContent.className = "calendar-event-details";
         const time = document.createElement("time");
         time.dateTime = `${dateKey}T${String(event.start_time).slice(0, 5)}`;
         time.textContent = `${String(event.start_time).slice(0, 5)}–${String(event.end_time).slice(0, 5)}`;
-        const title = document.createElement("strong");
-        title.textContent = event.title;
         const course = document.createElement("span");
         course.textContent = `${reminderTranslations[language()].eventTypes[event.event_type]} · ${event.course_name}`;
         const location = document.createElement("span");
         location.textContent = `${event.location_name}${event.group_name ? ` · ${event.group_name}` : ""}`;
-        item.append(time, title, course, location);
+        detailsContent.append(time, course, location);
+        details.append(summary, detailsContent);
+        item.append(details);
         list.append(item);
       }
       if (!dayEvents.length) {
