@@ -130,6 +130,7 @@ export async function initializeStudentCalendar({ preview = false, notify = () =
   let currentSession = null;
   let weekOffset = 0;
   let eventFilter = "all";
+  const expandedCalendarDays = new Set();
   let lastAccountId = null;
 
   const language = () => document.documentElement.lang === "en" ? "en" : "ar";
@@ -174,6 +175,21 @@ export async function initializeStudentCalendar({ preview = false, notify = () =
       dateKey >= event.starts_on && dateKey <= event.ends_on;
   }
 
+  function eventCountLabel(count) {
+    if (language() === "en") return `${count} ${count === 1 ? "event" : "events"}`;
+    if (count === 1) return "موعد واحد";
+    if (count === 2) return "موعدان";
+    if (count < 11) return `${count} مواعيد`;
+    return `${count} موعدًا`;
+  }
+
+  function setDayToggleLabel(button, weekday, count, expanded) {
+    const action = language() === "en"
+      ? expanded ? "Hide events for" : "Show events for"
+      : expanded ? "إخفاء مواعيد" : "عرض مواعيد";
+    button.setAttribute("aria-label", `${action} ${weekday} (${eventCountLabel(count)})`);
+  }
+
   function renderCalendar() {
     const weekStart = mondayForWeek(new Date());
     const weekEnd = new Date(weekStart);
@@ -185,22 +201,52 @@ export async function initializeStudentCalendar({ preview = false, notify = () =
       const date = new Date(weekStart);
       date.setDate(weekStart.getDate() + index);
       const dateKey = toDateKey(date);
-      const day = document.createElement("article");
-      day.className = `calendar-day${dateKey === today ? " is-today" : ""}`;
-      const heading = document.createElement("div");
-      heading.className = "calendar-day-heading";
-      const weekday = document.createElement("span");
-      weekday.textContent = reminderTranslations[language()].weekdays[date.getDay()];
-      const dayTime = document.createElement("time");
-      dayTime.dateTime = dateKey;
-      dayTime.textContent = new Intl.DateTimeFormat(locale(), { day: "numeric", month: "short" }).format(date);
-      heading.append(weekday, dayTime);
-      const list = document.createElement("ul");
-      list.className = "calendar-event-list";
+      const weekdayName = reminderTranslations[language()].weekdays[date.getDay()];
       const dayEvents = events
         .filter((event) => eventFilter === "all" || event.event_type === eventFilter)
         .filter((event) => eventMatchesDay(event, date, dateKey))
         .sort((first, second) => String(first.start_time).localeCompare(String(second.start_time)));
+      const day = document.createElement("article");
+      day.className = `calendar-day${dateKey === today ? " is-today" : ""}`;
+      const heading = document.createElement("div");
+      heading.className = "calendar-day-heading";
+      const headingCopy = document.createElement("div");
+      headingCopy.className = "calendar-day-heading-copy";
+      const weekday = document.createElement("span");
+      weekday.textContent = weekdayName;
+      const dayTime = document.createElement("time");
+      dayTime.dateTime = dateKey;
+      dayTime.textContent = new Intl.DateTimeFormat(locale(), { day: "numeric", month: "short" }).format(date);
+      headingCopy.append(weekday, dayTime);
+      const headingActions = document.createElement("div");
+      headingActions.className = "calendar-day-heading-actions";
+      const count = document.createElement("span");
+      count.className = `calendar-day-count${dayEvents.length ? " has-events" : ""}`;
+      count.textContent = dayEvents.length ? eventCountLabel(dayEvents.length) : text("noEvents");
+      const list = document.createElement("ul");
+      list.className = "calendar-event-list";
+      list.id = `calendar-day-events-${dateKey}`;
+      const isExpanded = expandedCalendarDays.has(dateKey);
+      list.hidden = dayEvents.length > 0 && !isExpanded;
+      if (dayEvents.length) {
+        const toggle = document.createElement("button");
+        toggle.className = "calendar-day-toggle";
+        toggle.type = "button";
+        toggle.setAttribute("aria-controls", list.id);
+        toggle.setAttribute("aria-expanded", String(isExpanded));
+        toggle.textContent = "⌄";
+        setDayToggleLabel(toggle, weekdayName, dayEvents.length, isExpanded);
+        toggle.addEventListener("click", () => {
+          const nextExpanded = !expandedCalendarDays.has(dateKey);
+          if (nextExpanded) expandedCalendarDays.add(dateKey);
+          else expandedCalendarDays.delete(dateKey);
+          list.hidden = !nextExpanded;
+          toggle.setAttribute("aria-expanded", String(nextExpanded));
+          setDayToggleLabel(toggle, weekdayName, dayEvents.length, nextExpanded);
+        });
+        headingActions.append(toggle);
+      }
+      headingActions.append(count);
       for (const event of dayEvents) {
         const item = document.createElement("li");
         item.className = `calendar-event is-${event.event_type}`;
@@ -235,6 +281,7 @@ export async function initializeStudentCalendar({ preview = false, notify = () =
         empty.textContent = text("noEvents");
         list.append(empty);
       }
+      heading.append(headingCopy, headingActions);
       day.append(heading, list);
       return day;
     }));

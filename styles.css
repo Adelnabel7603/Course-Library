@@ -2292,6 +2292,7 @@ body.dark .category-scroll-button:not(:disabled):hover {
 .calendar-day {
   display: grid;
   min-width: 0;
+  min-height: 112px;
   align-content: start;
   gap: 8px;
   padding: 9px;
@@ -2306,12 +2307,44 @@ body.dark .category-scroll-button:not(:disabled):hover {
 }
 
 .calendar-day-heading {
-  display: grid;
-  gap: 1px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
   color: var(--muted);
   font-size: .73rem;
 }
 
+.calendar-day-heading-copy { display: grid; gap: 1px; }
+.calendar-day-heading-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; }
+.calendar-day-count {
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--paper) 80%, var(--surface));
+  font-size: .64rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.calendar-day-count.has-events { color: var(--green-strong); background: var(--green-soft); }
+.calendar-day-toggle {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--green-strong);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: .94rem;
+  line-height: 1;
+  transition: transform 150ms ease, background-color 150ms ease;
+}
+.calendar-day-toggle[aria-expanded="true"] { transform: rotate(180deg); }
+.calendar-day-toggle:focus-visible { outline: 2px solid var(--green-strong); outline-offset: 2px; }
 .calendar-day-heading time {
   color: var(--ink);
   font-size: .88rem;
@@ -2325,6 +2358,8 @@ body.dark .category-scroll-button:not(:disabled):hover {
   padding: 0;
   list-style: none;
 }
+
+.calendar-event-list:empty { display: none; }
 
 .calendar-event {
   padding: 0;
@@ -2628,6 +2663,9 @@ body.dark .calendar-day {
 }
 
 body.dark .calendar-day.is-today { border-color: #78c29c; }
+body.dark .calendar-day-count { color: var(--muted); background: #151d1a; }
+body.dark .calendar-day-count.has-events { color: #bde3c7; background: #263f36; }
+body.dark .calendar-day-toggle { border-color: var(--line); color: var(--ink); background: #121a30; }
 body.dark .calendar-event { color: var(--ink); background: #263f36; }
 body.dark .calendar-event.is-section { background: #263c4c; }
 body.dark .calendar-event.is-exam { background: #403621; }
