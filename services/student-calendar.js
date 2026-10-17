@@ -28,7 +28,7 @@ const reminderTranslations = {
     signIn: "تسجيل الدخول",
     signUp: "إنشاء الحساب",
     noEvents: "لا توجد مواعيد",
-    calendarLoadFailed: "تعذر تحميل التقويم. تأكد من تطبيق ترحيل الجداول في قاعدة البيانات.",
+    calendarLoadFailed: "تعذر تحميل مواعيد التقويم حاليًا. حاول مرة أخرى لاحقًا.",
     supabaseRequired: "حسابات الطلاب والتذكيرات تحتاج إعداد قاعدة البيانات.",
     createAccountSuccess: "تم إنشاء الحساب. راجع بريدك لتأكيده قبل تسجيل الدخول.",
     pushEnabled: "التنبيهات مفعّلة على هذا الجهاز.",
@@ -71,7 +71,7 @@ const reminderTranslations = {
     signIn: "Sign in",
     signUp: "Create account",
     noEvents: "No events",
-    calendarLoadFailed: "Could not load the calendar. Apply the calendar database migration first.",
+    calendarLoadFailed: "Calendar events are temporarily unavailable. Please try again later.",
     supabaseRequired: "Student accounts and reminders require the database to be configured.",
     createAccountSuccess: "Account created. Check your email to confirm it before signing in.",
     pushEnabled: "Alerts are enabled on this device.",
@@ -108,6 +108,7 @@ export async function initializeStudentCalendar({ preview = false, notify = () =
   if (!root) return;
   const { supabase } = preview ? { supabase: null } : await import("./supabase.js");
   const calendarGrid = root.querySelector("#calendar-grid");
+  const personalArea = root.querySelector(".personal-reminders");
   const calendarLabel = root.querySelector("#calendar-week-label");
   const calendarStatus = root.querySelector("#calendar-status");
   const guestPanel = root.querySelector("#student-auth-form");
@@ -290,6 +291,7 @@ export async function initializeStudentCalendar({ preview = false, notify = () =
       return;
     }
     if (!supabase) {
+      personalArea.hidden = true;
       setStatus(text("supabaseRequired"), true);
       renderCalendar();
       return;
@@ -297,11 +299,13 @@ export async function initializeStudentCalendar({ preview = false, notify = () =
     const { data, error } = await supabase.from("calendar_events").select("*").eq("is_active", true);
     if (error) {
       events = [];
+      personalArea.hidden = true;
       renderCalendar();
       setStatus(text("calendarLoadFailed"), true);
       return;
     }
     events = data || [];
+    personalArea.hidden = false;
     setStatus("");
     renderCalendar();
   }
@@ -510,6 +514,7 @@ export async function initializeStudentCalendar({ preview = false, notify = () =
   });
 
   if (preview) {
+    personalArea.hidden = true;
     guestPanel.hidden = true;
     sessionPanel.hidden = true;
     setStatus(language() === "en" ? "Student accounts require the live site." : "حسابات الطلاب متاحة على الموقع المنشور.");
@@ -528,6 +533,7 @@ export async function initializeStudentCalendar({ preview = false, notify = () =
       .subscribe();
     window.addEventListener("focus", () => { void loadCalendar(); });
   } else {
+    personalArea.hidden = true;
     guestPanel.hidden = true;
     sessionPanel.hidden = true;
     setStatus(text("supabaseRequired"), true);
