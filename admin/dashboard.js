@@ -2099,13 +2099,6 @@ notificationForm.addEventListener("submit", async (event) => {
     notify(`حجم «${oversizedAttachment.name}» أكبر من الحد المسموح (1 GB).`, true);
     return;
   }
-  const unsupportedAttachment = selectedAttachments.find((file) =>
-    !uploadMimeTypes.has(getUploadMimeType(file)),
-  );
-  if (unsupportedAttachment) {
-    notify(`نوع الملف «${unsupportedAttachment.name}» غير مدعوم.`, true);
-    return;
-  }
   submit.disabled = true;
   let imagePath = null;
   const uploadedAttachmentPaths = [];
