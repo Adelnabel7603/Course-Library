@@ -15,6 +15,9 @@ const toast = document.querySelector("#admin-toast");
 const categoryForm = document.querySelector("#category-form");
 const categoryList = document.querySelector("#category-list");
 const categoryCount = document.querySelector("#category-count");
+const semesterAdminList = document.querySelector("#semester-admin-list");
+const semesterManagementNote = document.querySelector("#semester-management-note");
+const cancelCategoryEdit = document.querySelector("#cancel-category-edit");
 const fileForm = document.querySelector("#file-form");
 const notificationForm = document.querySelector("#notification-form");
 const adminNotificationList = document.querySelector("#admin-notification-list");
@@ -49,6 +52,7 @@ const migrationInput = document.querySelector("#legacy-files");
 const migrationProgress = document.querySelector("#migration-progress");
 const migrationButton = document.querySelector("#migration-button");
 let categories = [];
+let semesters = [];
 let files = [];
 let notifications = [];
 const defaultHomepageSections = [
@@ -66,6 +70,10 @@ let editingNotification = null;
 let removeCurrentNotificationImage = false;
 const removedNotificationAttachmentPaths = new Set();
 const uploadDrafts = new Map();
+const previewSemesters = [
+  { id: "local-semester-1", name: "الترم الأول", description: "", icon: "📚", display_text: "", status: "active", subject_count: 6, position: 0 },
+  { id: "local-semester-2", name: "الترم الثاني", description: "", icon: "🎓", display_text: "قريبًا", status: "coming_soon", subject_count: 0, position: 1 },
+];
 
 const maxFileSize = 1024 ** 3;
 const maxCoverSize = 50 * 1024 ** 2;
@@ -264,6 +272,13 @@ function updateFileSelection() {
 function assertSuccess({ data, error }) {
   if (error) throw error;
   return data;
+}
+
+function dashboardErrorMessage(error) {
+  if (["42P01", "PGRST205", "42703", "PGRST204"].includes(error.code)) {
+    return "قاعدة البيانات تحتاج إلى تحديث الفصول والتصنيفات. شغّل database/semester-library-migration.sql في Supabase ثم أعد تحميل لوحة الإدارة.";
+  }
+  return error.message;
 }
 
 async function sendPushAlerts(rows) {
@@ -546,8 +561,13 @@ async function loadData() {
           ...category,
           id: `local-category-${index}`,
           parent_id: null,
+          semester_id: previewSemesters[0].id,
+          description: "",
+          icon: "📁",
           is_active: true,
         }));
+    semesters = JSON.parse(localStorage.getItem("course-library-feature-preview-semesters") || "null") ||
+      previewSemesters.map((semester) => ({ ...semester }));
     const savedFiles = localStorage.getItem("course-library-feature-preview-files");
     files = savedFiles
       ? JSON.parse(savedFiles).map((file) => ({
@@ -561,6 +581,7 @@ async function loadData() {
     homepageSections = savedSections ? JSON.parse(savedSections) : defaultHomepageSections.map((section) => ({ ...section }));
     homepageSectionSettingsAvailable = true;
     renderCategories();
+    renderSemesters();
     renderParentCategoryOptions();
     renderCategoryOptions();
     renderFiles();
@@ -568,12 +589,14 @@ async function loadData() {
     renderHomepageSections();
     return;
   }
-  const [categoryData, fileData, notificationData, homepageSectionData] = await Promise.all([
+  const [semesterData, categoryData, fileData, notificationData, homepageSectionData] = await Promise.all([
+    client.from("semesters").select("*").order("position"),
     client.from("categories").select("*").order("position"),
     client.from("files").select("*, categories(id, name_ar, name_en, parent_id)").order("position").order("created_at", { ascending: false }),
     client.from("notifications").select("*").order("created_at", { ascending: false }).limit(50),
     client.from("homepage_sections").select("id, position, is_visible").order("position"),
   ]);
+  semesters = assertSuccess(semesterData);
   categories = assertSuccess(categoryData);
   files = assertSuccess(fileData);
   notifications = assertSuccess(notificationData);
@@ -590,6 +613,7 @@ async function loadData() {
       : defaultHomepageSections.map((section) => ({ ...section }));
   }
   renderCategories();
+  renderSemesters();
   renderParentCategoryOptions();
   renderCategoryOptions();
   renderFiles();
@@ -612,7 +636,10 @@ function renderCategories() {
       const status = document.createElement("span");
       status.className = `category-status${category.is_coming_soon ? " is-coming-soon" : ""}`;
       status.textContent = category.is_coming_soon ? "قريبًا" : category.is_active ? "نشط" : "مخفي";
-      info.append(name, status);
+      const fileTotal = document.createElement("small");
+      fileTotal.className = "category-admin-file-count";
+      fileTotal.textContent = `${countCategoryFiles(category.id)} ملف تابع`;
+      info.append(name, status, fileTotal);
       const actions = document.createElement("div");
       actions.className = "category-actions";
       const edit = document.createElement("button");
@@ -633,26 +660,42 @@ function renderCategories() {
       down.addEventListener("click", () => moveCategory(category, 1));
       const toggle = document.createElement("button");
       toggle.className = "secondary-button small-button";
-      toggle.textContent = category.is_coming_soon
-        ? "إزالة قريبًا"
-        : "إضافة قريبًا";
-      toggle.setAttribute(
-        "aria-label",
-        `${category.is_coming_soon ? "إزالة علامة قريبًا عن" : "إضافة علامة قريبًا إلى"} ${category.name_ar}`,
-      );
+      toggle.textContent = category.is_active ? "إخفاء" : "إظهار";
+      toggle.setAttribute("aria-label", `${category.is_active ? "إخفاء" : "إظهار"} ${category.name_ar}`);
       toggle.addEventListener("click", async () => {
         try {
           assertSuccess(await client.from("categories").update({
-            is_coming_soon: !category.is_coming_soon,
+            is_active: !category.is_active,
           }).eq("id", category.id));
           await loadData();
         } catch (error) { notify(error.message, true); }
       });
+      const review = document.createElement("a");
+      review.className = "secondary-button small-button";
+      review.textContent = "معاينة";
+      const root = getRootCategory(category);
+      if (root?.semester_id) {
+        review.href = `../?semester=${encodeURIComponent(root.semester_id)}&category=${encodeURIComponent(category.id)}#library`;
+        review.target = "_blank";
+        review.rel = "noopener";
+      } else {
+        review.href = "../#library";
+      }
       const remove = document.createElement("button");
       remove.className = "danger-button small-button";
       remove.textContent = "حذف";
       remove.addEventListener("click", async () => {
-        if (!window.confirm(`حذف تصنيف «${category.name_ar}»؟`)) return;
+        const childCount = categories.filter((item) => item.parent_id === category.id).length;
+        const directFileCount = files.filter((item) => item.category_id === category.id).length;
+        if (childCount || directFileCount) {
+          const contents = [
+            childCount ? `${childCount} تصنيف فرعي` : "",
+            directFileCount ? `${directFileCount} ملف مرتبط` : "",
+          ].filter(Boolean).join(" و");
+          notify(`لا يمكن حذف «${category.name_ar}» لأنه يحتوي على ${contents}. أخفِه بدلًا من ذلك أو انقل محتواه أولًا.`, true);
+          return;
+        }
+        if (!window.confirm(`حذف التصنيف الفارغ «${category.name_ar}» نهائيًا؟ يمكنك إخفاؤه بدل الحذف.`)) return;
         try {
           assertSuccess(await client.from("categories").delete().eq("id", category.id));
           await loadData();
@@ -660,7 +703,7 @@ function renderCategories() {
           notify(`تعذر حذف التصنيف. انقل ملفاته أولًا إن وُجدت. ${error.message}`, true);
         }
       });
-      actions.append(up, down, edit, toggle, remove);
+      actions.append(up, down, edit, review, toggle, remove);
       actions.hidden = localFeaturePreview;
       row.append(info, actions);
       return row;
@@ -668,10 +711,155 @@ function renderCategories() {
   );
 }
 
+function countCategoryFiles(categoryId) {
+  const descendants = new Set([categoryId]);
+  let changed;
+  do {
+    changed = false;
+    for (const category of categories) {
+      if (descendants.has(category.parent_id) && !descendants.has(category.id)) {
+        descendants.add(category.id);
+        changed = true;
+      }
+    }
+  } while (changed);
+  return new Set(files.filter((file) => file.is_published && descendants.has(file.category_id))
+    .map((file) => file.id)).size;
+}
+
+function renderSemesters() {
+  semesterAdminList.replaceChildren(...[...semesters]
+    .sort((first, second) => first.position - second.position)
+    .map((semester, index) => {
+      const form = document.createElement("form");
+      form.className = "semester-admin-row";
+      const heading = document.createElement("div");
+      heading.className = "semester-admin-heading";
+      const title = document.createElement("strong");
+      title.textContent = semester.name;
+      const total = document.createElement("span");
+      const linked = categories.filter((category) =>
+        getRootCategory(category)?.semester_id === semester.id);
+      const ids = new Set(linked.map((category) => category.id));
+      total.textContent = `${new Set(files.filter((file) => file.is_published && ids.has(file.category_id))
+        .map((file) => file.id)).size} ملف · ${linked.filter((category) => !category.parent_id).length} تصنيف رئيسي`;
+      heading.append(title, total);
+      const name = document.createElement("label");
+      name.textContent = "الاسم";
+      const nameInput = document.createElement("input");
+      nameInput.name = "name";
+      nameInput.required = true;
+      nameInput.value = semester.name;
+      name.append(nameInput);
+      const description = document.createElement("label");
+      description.textContent = "الوصف";
+      const descriptionInput = document.createElement("textarea");
+      descriptionInput.name = "description";
+      descriptionInput.rows = 2;
+      descriptionInput.value = semester.description || "";
+      description.append(descriptionInput);
+      const icon = document.createElement("label");
+      icon.textContent = "الأيقونة";
+      const iconInput = document.createElement("input");
+      iconInput.name = "icon";
+      iconInput.maxLength = 8;
+      iconInput.value = semester.icon || "📚";
+      icon.append(iconInput);
+      const badge = document.createElement("label");
+      badge.textContent = "النص الظاهر على البطاقة";
+      const badgeInput = document.createElement("input");
+      badgeInput.name = "display_text";
+      badgeInput.maxLength = 60;
+      badgeInput.value = semester.display_text || "";
+      badge.append(badgeInput);
+      const statusField = document.createElement("label");
+      statusField.textContent = "الحالة";
+      const statusSelect = document.createElement("select");
+      statusSelect.name = "status";
+      for (const [value, label] of [["active", "متاح"], ["coming_soon", "قريبًا"], ["hidden", "مخفي"]]) {
+        statusSelect.add(new Option(label, value, false, semester.status === value));
+      }
+      statusField.append(statusSelect);
+      const actions = document.createElement("div");
+      actions.className = "semester-admin-actions";
+      for (const direction of [-1, 1]) {
+        const move = document.createElement("button");
+        move.type = "button";
+        move.className = "secondary-button small-button";
+        move.textContent = direction < 0 ? "↑" : "↓";
+        move.disabled = index + direction < 0 || index + direction >= semesters.length;
+        move.setAttribute("aria-label", `${direction < 0 ? "تقديم" : "تأخير"} ${semester.name}`);
+        move.addEventListener("click", () => { void moveSemester(semester, direction); });
+        actions.append(move);
+      }
+      const save = document.createElement("button");
+      save.type = "submit";
+      save.className = "primary-button";
+      save.textContent = "حفظ";
+      actions.append(save);
+      form.append(heading, name, description, icon, badge, statusField, actions);
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const values = new FormData(form);
+        const update = {
+          name: values.get("name").trim(),
+          description: values.get("description").trim(),
+          icon: values.get("icon").trim() || "📚",
+          display_text: values.get("display_text").trim(),
+          status: values.get("status"),
+        };
+        try {
+          if (localFeaturePreview) {
+            Object.assign(semester, update);
+            localStorage.setItem("course-library-feature-preview-semesters", JSON.stringify(semesters));
+          } else {
+            assertSuccess(await client.from("semesters").update(update).eq("id", semester.id));
+          }
+          await loadData();
+          notify("تم حفظ إعدادات الفصل الدراسي.");
+        } catch (error) { notify(error.message, true); }
+      });
+      return form;
+    }));
+  semesterManagementNote.hidden = localFeaturePreview || semesters.length > 0;
+  semesterManagementNote.textContent = "شغّل database/semester-library-migration.sql لإعداد تخزين الفصول الدراسيّة.";
+}
+
+function getRootCategory(category) {
+  let root = category;
+  const visited = new Set();
+  while (root?.parent_id && !visited.has(root.id)) {
+    visited.add(root.id);
+    root = categories.find((item) => item.id === root.parent_id);
+  }
+  return root;
+}
+
+async function moveSemester(semester, direction) {
+  const ordered = [...semesters].sort((first, second) => first.position - second.position);
+  const index = ordered.findIndex((item) => item.id === semester.id);
+  const next = index + direction;
+  if (next < 0 || next >= ordered.length) return;
+  [ordered[index], ordered[next]] = [ordered[next], ordered[index]];
+  try {
+    if (localFeaturePreview) {
+      ordered.forEach((item, position) => { item.position = position; });
+      localStorage.setItem("course-library-feature-preview-semesters", JSON.stringify(ordered));
+    } else {
+      for (const [position, item] of ordered.entries()) {
+        assertSuccess(await client.from("semesters").update({ position }).eq("id", item.id));
+      }
+    }
+    await loadData();
+  } catch (error) { notify(error.message, true); }
+}
+
 function categoryPath(category) {
   const parts = [category.name_ar];
   let parent = categories.find((item) => item.id === category.parent_id);
-  while (parent) {
+  const visited = new Set([category.id]);
+  while (parent && !visited.has(parent.id)) {
+    visited.add(parent.id);
     parts.unshift(parent.name_ar);
     parent = categories.find((item) => item.id === parent.parent_id);
   }
@@ -718,6 +906,9 @@ function renderParentCategoryOptions() {
     options.push(new Option(categoryPath(category), category.id));
   }
   categoryForm.elements.parent_id.replaceChildren(...options);
+  const semesterOptions = semesters.map((semester) =>
+    new Option(semester.name, semester.id));
+  categoryForm.elements.semester_id.replaceChildren(...semesterOptions);
 }
 
 function createUploadEditor(file, index) {
@@ -1111,65 +1302,97 @@ categoryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const values = new FormData(categoryForm);
   try {
-    if (localFeaturePreview) {
-      const nameAr = values.get("name_ar").trim();
-      if (categories.some((category) => category.name_ar === nameAr)) {
-        throw new Error("اسم التصنيف موجود بالفعل في المعاينة.");
+    const id = values.get("id");
+    const parentId = values.get("parent_id") || null;
+    const status = values.get("category_status");
+    const rootParent = parentId
+      ? getRootCategory(categories.find((category) => category.id === parentId))
+      : null;
+    if (id) {
+      let parent = categories.find((category) => category.id === parentId);
+      const visited = new Set();
+      while (parent) {
+        if (parent.id === id) throw new Error("لا يمكن نقل التصنيف داخل نفسه أو داخل تصنيف فرعي منه.");
+        if (visited.has(parent.id)) throw new Error("تعذر نقل التصنيف بسبب وجود حلقة في شجرة التصنيفات.");
+        visited.add(parent.id);
+        parent = categories.find((category) => category.id === parent.parent_id);
       }
-      const parentId = values.get("parent_id") || null;
-      categories.push({
-        id: crypto.randomUUID(),
-        name_ar: nameAr,
-        name_en: values.get("name_en").trim(),
-        parent_id: parentId,
-        is_active: true,
-        is_coming_soon: values.has("is_coming_soon"),
-        position: categories.filter((category) => category.parent_id === parentId).length,
-      });
-      localStorage.setItem("course-library-feature-preview", JSON.stringify(categories));
-      categoryForm.reset();
-      await loadData();
-      notify("تمت الإضافة في المعاينة المحلية فقط؛ لم يتغير الموقع أو قاعدة البيانات.");
-      return;
     }
-    assertSuccess(await client.from("categories").insert({
+    const updates = {
       name_ar: values.get("name_ar").trim(),
       name_en: values.get("name_en").trim(),
-      parent_id: values.get("parent_id") || null,
-      is_coming_soon: values.has("is_coming_soon"),
-      position: categories.filter((category) =>
-        category.parent_id === (values.get("parent_id") || null),
-      ).length,
-    }));
+      parent_id: parentId,
+      semester_id: parentId ? rootParent?.semester_id || null : values.get("semester_id") || null,
+      description: values.get("description").trim(),
+      icon: values.get("icon").trim() || "📁",
+      is_active: status !== "hidden",
+      is_coming_soon: status === "coming_soon",
+    };
+    if (localFeaturePreview) {
+      if (categories.some((category) => category.name_ar === updates.name_ar && category.id !== id)) {
+        throw new Error("اسم التصنيف موجود بالفعل في المعاينة.");
+      }
+      if (id) {
+        Object.assign(categories.find((category) => category.id === id), updates);
+      } else {
+        categories.push({
+          ...updates,
+          id: crypto.randomUUID(),
+          position: categories.filter((category) => category.parent_id === parentId).length,
+        });
+      }
+      localStorage.setItem("course-library-feature-preview", JSON.stringify(categories));
+      categoryForm.reset();
+      resetCategoryForm();
+      await loadData();
+      notify(`تم حفظ التصنيف في المعاينة المحلية فقط؛ لم يتغير الموقع أو قاعدة البيانات.`);
+      return;
+    }
+    if (id) {
+      assertSuccess(await client.from("categories").update(updates).eq("id", id));
+    } else {
+      assertSuccess(await client.from("categories").insert({
+        ...updates,
+        position: categories.filter((category) => category.parent_id === parentId).length,
+      }));
+    }
     categoryForm.reset();
+    resetCategoryForm();
     await loadData();
-    notify("تمت إضافة التصنيف.");
+    notify(id ? "تم تحديث التصنيف." : "تمت إضافة التصنيف.");
   } catch (error) { notify(error.message, true); }
 });
 
 function editCategory(category) {
-  const nameAr = window.prompt("اسم التصنيف بالعربية:", category.name_ar);
-  if (nameAr === null) return;
-  const nameEn = window.prompt("الاسم بالإنجليزية:", category.name_en || "");
-  if (nameEn === null) return;
-  void (async () => {
-    try {
-      if (localFeaturePreview) {
-        category.name_ar = nameAr.trim();
-        category.name_en = nameEn.trim();
-        localStorage.setItem("course-library-feature-preview", JSON.stringify(categories));
-        await loadData();
-        return;
-      }
-      assertSuccess(await client.from("categories").update({
-        name_ar: nameAr.trim(),
-        name_en: nameEn.trim(),
-      }).eq("id", category.id));
-      await loadData();
-      notify("تم تحديث التصنيف.");
-    } catch (error) { notify(error.message, true); }
-  })();
+  categoryForm.elements.id.value = category.id;
+  categoryForm.elements.name_ar.value = category.name_ar;
+  categoryForm.elements.name_en.value = category.name_en || "";
+  categoryForm.elements.description.value = category.description || "";
+  categoryForm.elements.icon.value = category.icon || "📁";
+  categoryForm.elements.parent_id.value = category.parent_id || "";
+  categoryForm.elements.category_status.value = category.is_coming_soon
+    ? "coming_soon"
+    : category.is_active ? "active" : "hidden";
+  categoryForm.elements.semester_id.value = getRootCategory(category)?.semester_id || "";
+  document.querySelector(".category-submit").textContent = "حفظ التعديلات";
+  cancelCategoryEdit.hidden = false;
+  renderParentCategoryOptions();
+  categoryForm.elements.parent_id.value = category.parent_id || "";
+  categoryForm.elements.semester_id.value = getRootCategory(category)?.semester_id || "";
+  categoryForm.scrollIntoView({ behavior: "smooth", block: "center" });
 }
+
+function resetCategoryForm() {
+  categoryForm.elements.id.value = "";
+  document.querySelector(".category-submit").textContent = "＋ إضافة التصنيف";
+  cancelCategoryEdit.hidden = true;
+  renderParentCategoryOptions();
+}
+
+cancelCategoryEdit.addEventListener("click", () => {
+  categoryForm.reset();
+  resetCategoryForm();
+});
 
 function editFile(file) {
   resetFileForm();
@@ -1851,6 +2074,7 @@ if (localFeaturePreview) {
   document.querySelector("#dashboard-message").hidden = false;
   const previewPanels = new Set([
     "homepage-sections-panel",
+    "semester-management-panel",
     "calendar-events-panel",
     "categories-panel",
     "file-form-panel",
@@ -1877,7 +2101,7 @@ if (localFeaturePreview) {
       await loadData();
       await initializeCalendarManagement({ client, localFeaturePreview, notify });
     } catch (error) {
-      message.textContent = error.message;
+      message.textContent = dashboardErrorMessage(error);
       message.hidden = false;
     }
   }
