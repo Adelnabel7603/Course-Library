@@ -93,25 +93,6 @@ const notificationImageMimeTypes = new Set([
   "image/gif",
 ]);
 
-const uploadMimeTypes = new Set([
-  "application/pdf",
-  "application/msword",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/zip",
-  "text/plain",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-]);
-
 const mimeTypesByExtension = {
   ".pdf": "application/pdf",
   ".doc": "application/msword",
@@ -1802,10 +1783,6 @@ fileForm.addEventListener("submit", async (event) => {
     const oversizedFile = newFiles.find((file) => file.size > maxFileSize);
     if (oversizedFile) {
       throw new Error(`حجم «${oversizedFile.name}» أكبر من الحد المسموح (1 GB).`);
-    }
-    const unsupportedFile = newFiles.find((file) => !uploadMimeTypes.has(getUploadMimeType(file)));
-    if (unsupportedFile) {
-      throw new Error(`نوع الملف «${unsupportedFile.name}» غير مدعوم.`);
     }
     if (localFeaturePreview && existing && newFiles.length === 0) {
       const isPublishing = !existing.is_published && values.has("is_published");

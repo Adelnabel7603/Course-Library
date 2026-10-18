@@ -166,17 +166,11 @@ values (
   'library-files',
   false,
   1073741824,
-  array['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-        'video/mp4', 'video/webm', 'video/quicktime',
-        'application/zip', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/msword', 'application/vnd.ms-powerpoint', 'application/vnd.ms-excel',
-        'text/plain']
+  null
 )
 on conflict (id) do update set public = excluded.public,
   file_size_limit = excluded.file_size_limit,
-  allowed_mime_types = excluded.allowed_mime_types;
+  allowed_mime_types = null;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (

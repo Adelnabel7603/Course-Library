@@ -4,10 +4,11 @@ alter table public.files
 alter table public.notifications
   add column if not exists attachments jsonb not null default '[]'::jsonb;
 
-insert into storage.buckets (id, name, public, file_size_limit)
-values ('library-files', 'library-files', false, 1073741824)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('library-files', 'library-files', false, 1073741824, null)
 on conflict (id) do update
-  set file_size_limit = excluded.file_size_limit;
+  set file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = null;
 
 drop policy if exists "Public can read published assets" on storage.objects;
 create policy "Public can read published assets" on storage.objects
