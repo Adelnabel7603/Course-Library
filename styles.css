@@ -1200,6 +1200,176 @@ body.dark .category-scroll-button:not(:disabled):hover {
   background: var(--green-strong);
 }
 
+.semester-home {
+  padding: clamp(22px, 4vw, 42px);
+  border: 1px solid rgb(21 63 56 / 9%);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 8% 12%, rgb(213 185 103 / 18%), transparent 26%),
+    linear-gradient(135deg, #fff, #f0f5ee);
+  box-shadow: 0 18px 48px rgb(24 50 42 / 8%);
+}
+
+.semester-intro { max-width: 620px; margin-bottom: 24px; }
+.semester-intro .section-kicker { margin-bottom: 6px; color: var(--green-strong); font-weight: 700; }
+.semester-intro h2 { margin: 0 0 7px; font-size: clamp(1.45rem, 3vw, 2rem); }
+.semester-intro > p:last-child { margin: 0; color: var(--muted); }
+.semester-grid, .category-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.semester-card {
+  position: relative;
+  display: grid;
+  min-height: 190px;
+  grid-template-columns: 68px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 23px;
+  color: #fff;
+  text-align: start;
+  background: linear-gradient(125deg, #17483f, #256c58);
+  box-shadow: 0 14px 28px rgb(21 63 56 / 18%);
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.semester-card::after {
+  position: absolute;
+  inset-inline-end: -34px;
+  bottom: -86px;
+  width: 210px;
+  height: 210px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.semester-card:not(:disabled) { cursor: pointer; }
+.semester-card:not(:disabled):hover { transform: translateY(-4px); box-shadow: 0 20px 36px rgb(21 63 56 / 24%); }
+.semester-card:not(:disabled):active { transform: translateY(-1px) scale(.99); }
+.semester-card:focus-visible, .category-card:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.semester-card.is-coming-soon { color: var(--ink); background: linear-gradient(125deg, #eef1eb, #e1e8df); box-shadow: none; }
+.semester-icon {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 20px;
+  background: rgb(255 255 255 / 13%);
+  font-size: 2rem;
+}
+.is-coming-soon .semester-icon { border-color: var(--line); background: #fff; }
+.semester-card-content { display: grid; min-width: 0; gap: 5px; }
+.semester-card-content strong { font-size: clamp(1.3rem, 2.5vw, 1.7rem); overflow-wrap: anywhere; }
+.semester-status { width: fit-content; padding: 2px 10px; border-radius: 999px; color: #fff2c5; background: rgb(255 255 255 / 12%); font-size: .78rem; font-weight: 700; }
+.is-coming-soon .semester-status { color: #765b1a; background: #f4e9c7; }
+.semester-description { color: rgb(255 255 255 / 82%); line-height: 1.7; }
+.is-coming-soon .semester-description { color: var(--muted); }
+.semester-stats { margin-top: 7px; font-size: .9rem; font-weight: 700; }
+.semester-arrow { position: relative; z-index: 1; display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid rgb(255 255 255 / 32%); border-radius: 50%; font-size: 1.2rem; }
+.is-coming-soon .semester-arrow { border-color: var(--line); }
+.semester-skeleton { min-height: 190px; border-radius: 23px; background: linear-gradient(100deg, #e4e9e3 20%, #f3f5f0 40%, #e4e9e3 60%); background-size: 200% 100%; animation: library-shimmer 1.3s linear infinite; }
+@keyframes library-shimmer { to { background-position-x: -200%; } }
+.term-content { padding-top: 10px; }
+.library-breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 0 0 18px; color: var(--muted); }
+.library-breadcrumbs button { min-height: 40px; padding: 5px 8px; border: 0; border-radius: 8px; color: var(--green-strong); background: transparent; font-weight: 700; }
+.library-breadcrumbs button:hover { background: var(--green-soft); }
+.category-cards {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+  gap: 15px;
+  margin-bottom: 22px;
+}
+.category-card {
+  position: relative;
+  display: grid;
+  min-height: 126px;
+  grid-template-columns: 54px minmax(0, 1fr) 30px;
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  gap: 5px 14px;
+  overflow: hidden;
+  padding: 17px 18px;
+  border: 1px solid var(--line);
+  border-radius: 21px;
+  color: var(--ink);
+  text-align: start;
+  background: linear-gradient(145deg, var(--surface), color-mix(in srgb, var(--green-soft) 25%, var(--surface)));
+  box-shadow: 0 8px 22px rgb(24 50 42 / 6%);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+.category-card::before { position: absolute; inset: 0 0 auto auto; width: 115px; height: 115px; border-radius: 50%; background: radial-gradient(circle, rgb(73 128 94 / 9%), transparent 70%); content: ""; pointer-events: none; }
+.category-card:hover { transform: translateY(-4px); border-color: #a9c4b3; box-shadow: 0 16px 30px rgb(24 50 42 / 12%); }
+.category-card:active:not(:disabled) { transform: translateY(-1px) scale(.99); }
+.category-card:disabled { cursor: not-allowed; }
+.category-card.is-coming-soon { opacity: .76; }
+.category-card.is-coming-soon .category-card-count { color: #876c2b; background: #f5edda; }
+.category-card-icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 54px;
+  height: 54px;
+  grid-column: 1;
+  grid-row: 1 / 4;
+  place-items: center;
+  border: 1px solid rgb(47 108 83 / 12%);
+  border-radius: 17px;
+  color: #28634c;
+  background: linear-gradient(145deg, #e8f3e9, #d7eadc);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 75%), 0 5px 12px rgb(32 83 62 / 9%);
+  font-size: 1.5rem;
+}
+.category-card-icon svg { width: 29px; height: 29px; }
+.category-card-icon[data-theme="exam"] { color: #7b5a17; background: linear-gradient(145deg, #fff3d5, #f5e4b8); }
+.category-card-icon[data-theme="lecture"] { color: #3c5f91; background: linear-gradient(145deg, #e9f1ff, #d9e6fa); }
+.category-card-icon[data-theme="section"] { color: #76508a; background: linear-gradient(145deg, #f3eafa, #e8d9f1); }
+.category-card-icon[data-theme="calculator"] { color: #28756e; background: linear-gradient(145deg, #e3f4f0, #cce9e2); }
+.category-card-icon[data-theme="tax"] { color: #936126; background: linear-gradient(145deg, #fff0dc, #f4dfc1); }
+.category-card-icon[data-theme="finance"] { color: #25704f; background: linear-gradient(145deg, #e5f4e7, #cfe8d4); }
+.category-card-icon[data-theme="business"] { color: #48658a; background: linear-gradient(145deg, #e8eff8, #d5e0ef); }
+.category-card-icon[data-theme="library"] { color: #9b6336; background: linear-gradient(145deg, #fff0df, #f4dfc8); }
+.category-card-icon[data-theme="document"] { color: #9b5160; background: linear-gradient(145deg, #fdebed, #f4d9de); }
+.category-card-icon.has-custom-icon { font-family: "Apple Color Emoji", "Segoe UI Emoji", sans-serif; }
+.category-card > strong { position: relative; z-index: 1; min-width: 0; grid-column: 2; grid-row: 1; overflow-wrap: anywhere; font-size: 1.08rem; line-height: 1.45; }
+.category-card-description { position: relative; z-index: 1; grid-column: 2; grid-row: 2; overflow: hidden; color: var(--muted); font-size: .84rem; line-height: 1.55; text-overflow: ellipsis; }
+.category-card-count { position: relative; z-index: 1; width: fit-content; align-self: end; grid-column: 2; grid-row: 2; padding: 4px 10px; border-radius: 999px; color: var(--green-strong); background: var(--green-soft); font-size: .78rem; font-weight: 700; }
+.category-card.has-description .category-card-count { grid-row: 3; }
+.category-card-arrow { position: relative; z-index: 1; display: grid; width: 30px; height: 30px; grid-column: 3; grid-row: 1 / 4; place-items: center; border: 1px solid rgb(47 108 83 / 14%); border-radius: 50%; color: var(--green-strong); background: rgb(255 255 255 / 65%); font-size: 1.05rem; transition: transform 180ms ease; }
+.category-card:hover .category-card-arrow { transform: translateX(-3px); }
+.file-meta { display: block; margin-top: 4px; color: var(--muted); font-size: .78rem; }
+.library-load-error { margin: 18px 0; padding: 14px 16px; border: 1px solid #edc7c1; border-radius: 13px; color: #8b342d; background: #fff4f1; }
+.library-retry { margin-bottom: 16px; }
+#library .category-filter-rail { display: none; }
+body.dark .semester-home { border-color: var(--line); background: radial-gradient(circle at 8% 12%, rgb(213 185 103 / 10%), transparent 26%), linear-gradient(135deg, #1e2925, #202f29); }
+body.dark .semester-card:not(.is-coming-soon) { background: linear-gradient(125deg, #214d42, #28624f); }
+body.dark .semester-card.is-coming-soon { color: var(--ink); background: linear-gradient(125deg, #313c35, #28332e); }
+body.dark .is-coming-soon .semester-icon { background: var(--surface); }
+body.dark .category-card { border-color: var(--line); background: linear-gradient(145deg, var(--surface), #24342d); }
+body.dark .category-card::before { background: radial-gradient(circle, rgb(129 184 151 / 9%), transparent 70%); }
+body.dark .category-card-icon { border-color: rgb(255 255 255 / 8%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 5px 12px rgb(0 0 0 / 16%); }
+body.dark .category-card-icon[data-theme="exam"] { color: #f1cc70; background: linear-gradient(145deg, #51452b, #3c3526); }
+body.dark .category-card-icon[data-theme="lecture"] { color: #abc9f3; background: linear-gradient(145deg, #2d405b, #26364d); }
+body.dark .category-card-icon[data-theme="section"] { color: #d5b6e6; background: linear-gradient(145deg, #493857, #382d43); }
+body.dark .category-card-icon[data-theme="calculator"] { color: #9cdbce; background: linear-gradient(145deg, #284944, #223c38); }
+body.dark .category-card-icon[data-theme="tax"] { color: #e7c08c; background: linear-gradient(145deg, #4b3c2b, #3b3328); }
+body.dark .category-card-icon[data-theme="finance"] { color: #a7d9b9; background: linear-gradient(145deg, #294638, #23392f); }
+body.dark .category-card-icon[data-theme="business"] { color: #b3c9e7; background: linear-gradient(145deg, #303f54, #293646); }
+body.dark .category-card-icon[data-theme="library"] { color: #e4bc95; background: linear-gradient(145deg, #4b392d, #3b3028); }
+body.dark .category-card-icon[data-theme="document"] { color: #e9abb6; background: linear-gradient(145deg, #4b3037, #3e292f); }
+body.dark .category-card-count { color: #acd1ba; background: #2d4538; }
+body.dark .category-card.is-coming-soon .category-card-count { color: #e3c579; background: #463e2b; }
+body.dark .category-card-arrow { border-color: rgb(255 255 255 / 10%); background: rgb(255 255 255 / 5%); }
+body.dark .library-breadcrumbs button { color: #a8c6b5; }
+body.dark .library-breadcrumbs button:hover { background: #293c33; }
+body.dark .library-load-error { border-color: #75433e; color: #ffc6bc; background: #382725; }
+
 @media (max-width: 760px) {
   .page-width {
     width: min(100% - 32px, 600px);
@@ -1453,6 +1623,16 @@ body.dark .category-scroll-button:not(:disabled):hover {
   .file-grid {
     grid-template-columns: 1fr;
   }
+
+  .semester-home { padding: 20px 16px; border-radius: 22px; }
+  .semester-grid, .category-cards { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .semester-card { min-height: 162px; grid-template-columns: 52px minmax(0, 1fr) 30px; gap: 12px; padding: 18px 15px; border-radius: 18px; }
+  .semester-icon { width: 52px; height: 52px; border-radius: 15px; font-size: 1.55rem; }
+  .semester-skeleton { min-height: 162px; }
+  .category-card { min-height: 120px; grid-template-columns: 50px minmax(0, 1fr) 28px; gap: 5px 11px; padding: 14px; border-radius: 18px; }
+  .category-card-icon { width: 50px; height: 50px; border-radius: 15px; }
+  .category-card-icon svg { width: 26px; height: 26px; }
+  .library-breadcrumbs { gap: 1px; font-size: .87rem; }
 
   body {
     padding-bottom: calc(88px + env(safe-area-inset-bottom));
@@ -3679,4 +3859,9 @@ html[lang="en"] .mobile-toolbar {
     grid-row: 1 / span 2;
     align-self: center;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .semester-card, .category-card { transition: none; }
+  .semester-skeleton { animation: none; }
 }

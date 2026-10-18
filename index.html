@@ -86,7 +86,7 @@
             <svg class="toolbar-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4 4 4" /><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" /></svg>
             <span data-text="install">تثبيت التطبيق</span>
           </button>
-          <a class="outline-button admin-link" href="./admin/login.html" aria-label="الإدارة" title="الإدارة">
+<a class="outline-button admin-link" href="./admin/login.html" aria-label="الإدارة" title="الإدارة">
             <span aria-hidden="true">✎</span>
             <span data-text="admin">الإدارة</span>
           </a>
@@ -255,6 +255,22 @@
       </section>
 
       <section class="library" id="library" aria-labelledby="library-heading">
+        <div class="semester-home" id="semester-home" aria-label="الفصول الدراسية">
+          <div class="semester-intro">
+            <p class="section-kicker">ابدأ رحلتك الدراسية</p>
+            <h2>الفصول الدراسية</h2>
+            <p>كل ما تحتاجه من ملفات ومواد، منظم ليسهل عليك الوصول إليه.</p>
+          </div>
+          <div class="semester-grid" id="semester-grid" aria-live="polite">
+            <div class="semester-skeleton" aria-hidden="true"></div>
+            <div class="semester-skeleton" aria-hidden="true"></div>
+          </div>
+        </div>
+        <p class="library-load-error" id="library-load-error" role="alert" hidden></p>
+        <button class="secondary-button library-retry" id="library-retry" type="button" hidden>إعادة المحاولة</button>
+        <div class="term-content" id="term-content" hidden>
+          <nav class="library-breadcrumbs" id="library-breadcrumbs" aria-label="مسار التصفح"></nav>
+          <div class="category-cards" id="category-cards"></div>
           <section class="controls" aria-label="البحث والتصنيف">
             <div class="category-filter-rail">
               <button
@@ -298,6 +314,7 @@
         </div>
         <div class="file-grid" id="file-grid" aria-live="polite"></div>
         <p class="empty-state" id="empty-state" hidden></p>
+        </div>
       </section>
     </main>
 

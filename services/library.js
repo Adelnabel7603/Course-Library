@@ -3,15 +3,46 @@ async function getClient() {
   return requireSupabase();
 }
 
+const initialSemesters = [
+  {
+    id: "8c13f5b1-98bf-47a1-b076-ef58c0a10001",
+    name: "الترم الأول",
+    description: "ملفات ومواد الترم الأول مرتبة في مكان واحد.",
+    icon: "📚",
+    display_text: "",
+    status: "active",
+    subject_count: 6,
+    position: 0,
+  },
+  {
+    id: "8c13f5b1-98bf-47a1-b076-ef58c0a10002",
+    name: "الترم الثاني",
+    description: "نعمل على تجهيز محتوى الترم الثاني.",
+    icon: "🎓",
+    display_text: "قريبًا",
+    status: "coming_soon",
+    subject_count: 0,
+    position: 1,
+  },
+];
+
 export async function getPublicLibrary() {
   const client = await getClient();
   const [
+    { data: semesters, error: semestersError },
     { data: categories, error: categoriesError },
     { data: files, error: filesError },
     notificationsWithImage,
     homepageSectionsResult,
   ] = await Promise.all([
-      client.from("categories").select("id, name_ar, name_en, parent_id, is_active, is_coming_soon, position").eq("is_active", true).order("position"),
+      client.from("semesters")
+        .select("id, name, description, icon, display_text, status, subject_count, position")
+        .neq("status", "hidden")
+        .order("position"),
+      client.from("categories")
+        .select("id, name_ar, name_en, parent_id, semester_id, description, icon, is_active, is_coming_soon, position")
+        .eq("is_active", true)
+        .order("position"),
       client
         .from("files")
         .select("*, categories(id, name_ar, name_en, parent_id, is_coming_soon)")
@@ -30,7 +61,32 @@ export async function getPublicLibrary() {
         .order("position"),
     ]);
 
-  if (categoriesError) throw categoriesError;
+    let publicSemesters = semesters;
+    let publicCategories = categories;
+    if (semestersError || categoriesError) {
+      const unsupportedSchemaErrors = new Set(["42P01", "PGRST205", "42703", "PGRST204"]);
+      if (
+        (semestersError && !unsupportedSchemaErrors.has(semestersError.code)) ||
+        (categoriesError && !unsupportedSchemaErrors.has(categoriesError.code))
+      ) {
+        throw semestersError || categoriesError;
+      }
+      const [legacyCategories, legacySemesters] = await Promise.all([
+        client.from("categories")
+          .select("id, name_ar, name_en, parent_id, is_active, is_coming_soon, position")
+          .eq("is_active", true)
+          .order("position"),
+        Promise.resolve({ data: initialSemesters, error: null }),
+      ]);
+      if (legacyCategories.error) throw legacyCategories.error;
+      publicCategories = legacyCategories.data.map((category) => ({
+        ...category,
+        semester_id: category.parent_id ? null : initialSemesters[0].id,
+        description: "",
+        icon: "📁",
+      }));
+      publicSemesters = legacySemesters.data;
+    }
   if (filesError) throw filesError;
   let homepageSections = [];
   if (homepageSectionsResult.error) {
@@ -75,7 +131,7 @@ export async function getPublicLibrary() {
     }
   }
 
-  const visibleCategories = categories.filter((category) => !category.is_coming_soon);
+  const visibleCategories = publicCategories.filter((category) => !category.is_coming_soon);
   const categoryIds = new Set(visibleCategories.map((category) => category.id));
   const visibleFiles = files.filter((file) => categoryIds.has(file.category_id));
   const attachmentPaths = notifications.flatMap((notification) =>
@@ -108,7 +164,8 @@ export async function getPublicLibrary() {
       ]),
   );
   return {
-    categories,
+    semesters: publicSemesters,
+    categories: publicCategories,
     homepageSections,
     notifications: notifications.map((notification) => ({
       ...notification,
@@ -148,16 +205,17 @@ export async function subscribeToLibrary(onChange) {
   const client = await getClient();
   return client
     .channel("public-library")
+    .on("postgres_changes", { event: "*", schema: "public", table: "semesters" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "files" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "categories" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, onChange)
     .subscribe();
 }
 
-export async function registerPushSubscription(subscription) {
+export async function registerPushSubscription(subscription, preferences = { receiveLibrary: true }) {
   const client = await getClient();
   const { data, error } = await client.functions.invoke("register-push", {
-    body: { subscription },
+    body: { subscription, preferences },
   });
   if (error) throw error;
   return data;

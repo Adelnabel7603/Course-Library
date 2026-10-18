@@ -254,6 +254,13 @@ const translations = {
 };
 
 const categoryList = document.querySelector("#category-list");
+const semesterHome = document.querySelector("#semester-home");
+const semesterGrid = document.querySelector("#semester-grid");
+const termContent = document.querySelector("#term-content");
+const libraryBreadcrumbs = document.querySelector("#library-breadcrumbs");
+const categoryCards = document.querySelector("#category-cards");
+const libraryLoadError = document.querySelector("#library-load-error");
+const libraryRetry = document.querySelector("#library-retry");
 const categoryScrollLeft = document.querySelector("#category-scroll-left");
 const categoryScrollRight = document.querySelector("#category-scroll-right");
 const fileGrid = document.querySelector("#file-grid");
@@ -324,6 +331,9 @@ const downloadCancelButton = document.querySelector("#download-cancel");
 const siteUrl = new URL("./", window.location.href).href;
 
 let activeCategory = "all";
+let activeSemester = null;
+let semesters = [];
+const firstSemesterId = "8c13f5b1-98bf-47a1-b076-ef58c0a10001";
 let language = "ar";
 let toastTimeout;
 let mobileMoreMenuCloseTimeout;
@@ -1056,6 +1066,224 @@ function decodeVapidPublicKey(key) {
   return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
 }
 
+function categoriesForSemester(semesterId) {
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  return categories.filter((category) => {
+    let current = category;
+    const visited = new Set();
+    while (current?.parent_id && !visited.has(current.id)) {
+      visited.add(current.id);
+      current = byId.get(current.parent_id);
+    }
+    return current?.semester_id === semesterId;
+  });
+}
+
+function countCategoryFiles(categoryId) {
+  const ids = getCategoryTreeIds(categoryId);
+  return new Set(availableFiles
+    .filter((file) => ids.has(file.category_id))
+    .map((file) => file.id)).size;
+}
+
+function getCategoryTreeIds(categoryId) {
+  const ids = new Set([categoryId]);
+  let found;
+  do {
+    found = false;
+    for (const category of categories) {
+      if (ids.has(category.parent_id) && !ids.has(category.id)) {
+        ids.add(category.id);
+        found = true;
+      }
+    }
+  } while (found);
+  return ids;
+}
+
+function renderSemesters() {
+  semesterGrid.replaceChildren(...[...semesters]
+    .filter((semester) => semester.status !== "hidden")
+    .sort((first, second) => first.position - second.position)
+    .map((semester) => {
+      const card = document.createElement("button");
+      const comingSoon = semester.status === "coming_soon";
+      const semesterCategories = categoriesForSemester(semester.id);
+      const categoryIds = new Set(semesterCategories.map((category) => category.id));
+      const fileCount = new Set(availableFiles
+        .filter((file) => categoryIds.has(file.category_id))
+        .map((file) => file.id)).size;
+      card.type = "button";
+      card.className = `semester-card${comingSoon ? " is-coming-soon" : ""}`;
+      card.disabled = comingSoon;
+      card.setAttribute("aria-label", `${semester.name}${comingSoon ? "، قريبًا" : ""}`);
+      const icon = document.createElement("span");
+      icon.className = "semester-icon";
+      icon.textContent = semester.icon || "📚";
+      icon.setAttribute("aria-hidden", "true");
+      const content = document.createElement("span");
+      content.className = "semester-card-content";
+      const status = document.createElement("span");
+      status.className = "semester-status";
+      status.textContent = semester.display_text || (comingSoon ? currentText().comingSoon : "متاح الآن");
+      const title = document.createElement("strong");
+      title.textContent = semester.name;
+      const description = document.createElement("span");
+      description.className = "semester-description";
+      description.textContent = semester.description || "";
+      const stats = document.createElement("span");
+      stats.className = "semester-stats";
+      const subjectCount = semester.id === firstSemesterId
+        ? 6
+        : semester.subject_count || semesterCategories.filter((category) =>
+          !category.parent_id).length;
+      stats.textContent = `${fileCount} ملف · ${subjectCount} مواد`;
+      content.append(status, title, description, stats);
+      const arrow = document.createElement("span");
+      arrow.className = "semester-arrow";
+      arrow.textContent = "←";
+      arrow.setAttribute("aria-hidden", "true");
+      card.append(icon, content, arrow);
+      if (!comingSoon) {
+        card.addEventListener("click", () => {
+          activeSemester = semester;
+          activeCategory = "all";
+          semesterHome.hidden = true;
+          termContent.hidden = false;
+          searchInput.value = "";
+          renderCategoryBrowser();
+          renderFiles();
+        });
+      }
+      return card;
+    }));
+}
+
+function renderCategoryBrowser() {
+  const inSemester = categoriesForSemester(activeSemester?.id);
+  const current = categories.find((category) => category.id === activeCategory);
+  const parentIds = current ? [current.id] : [null];
+  const children = inSemester.filter((category) =>
+    parentIds.includes(category.parent_id || null))
+    .sort((first, second) => first.position - second.position);
+
+  const crumbs = [];
+  const home = document.createElement("button");
+  home.type = "button";
+  home.textContent = "الرئيسية";
+  home.addEventListener("click", () => {
+    activeSemester = null;
+    activeCategory = "all";
+    semesterHome.hidden = false;
+    termContent.hidden = true;
+    renderFiles();
+  });
+  crumbs.push(home, document.createTextNode("‹ "));
+  const semesterCrumb = document.createElement("button");
+  semesterCrumb.type = "button";
+  semesterCrumb.textContent = activeSemester?.name || "الترم الأول";
+  semesterCrumb.addEventListener("click", () => {
+    activeCategory = "all";
+    renderCategoryBrowser();
+    renderFiles();
+  });
+  crumbs.push(semesterCrumb);
+  const lineage = [];
+  let ancestor = current;
+  const visitedAncestors = new Set();
+  while (ancestor && !visitedAncestors.has(ancestor.id)) {
+    visitedAncestors.add(ancestor.id);
+    lineage.unshift(ancestor);
+    ancestor = categories.find((category) => category.id === ancestor.parent_id);
+  }
+  for (const category of lineage) {
+    crumbs.push(document.createTextNode(" ‹ "));
+    const crumb = document.createElement("button");
+    crumb.type = "button";
+    crumb.textContent = category.name_ar;
+    crumb.addEventListener("click", () => {
+      activeCategory = category.id;
+      renderCategoryBrowser();
+      renderFiles();
+    });
+    crumbs.push(crumb);
+  }
+  libraryBreadcrumbs.replaceChildren(...crumbs);
+
+  categoryCards.replaceChildren(...children.map((category) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    const comingSoon = category.is_coming_soon;
+    const descriptionText = category.description?.trim() || "";
+    card.className = `category-card${comingSoon ? " is-coming-soon" : ""}${descriptionText ? " has-description" : ""}`;
+    card.disabled = comingSoon;
+    if (!comingSoon) {
+      card.addEventListener("click", () => {
+        activeCategory = category.id;
+        searchInput.value = "";
+        renderCategoryBrowser();
+        renderFiles();
+      });
+    }
+    const icon = document.createElement("span");
+    icon.className = "category-card-icon";
+    icon.setAttribute("aria-hidden", "true");
+    const customIcon = category.icon?.trim();
+    if (customIcon && !["📁", "folder", "default"].includes(customIcon.toLowerCase())) {
+      icon.textContent = customIcon;
+      icon.classList.add("has-custom-icon");
+    } else {
+      const searchableName = `${category.key || ""} ${category.name_ar || ""} ${category.name_en || ""}`.toLowerCase();
+      const iconThemes = [
+        { theme: "exam", match: /امتحان|اختبار|exam|test|quiz/ },
+        { theme: "lecture", match: /محاضر|lecture|lesson/ },
+        { theme: "section", match: /سكشن|section|tutorial/ },
+        { theme: "tax", match: /ضرائب|ضريبة|tax/ },
+        { theme: "finance", match: /مالية|اقتصاد|مال|finance|financial|econom/ },
+        { theme: "calculator", match: /محاسب|تكلفة|تكاليف|حساب|account|cost|calcul/ },
+        { theme: "business", match: /منشآت|اعمال|business|enterprise/ },
+        { theme: "library", match: /مكتبة|سنتر|سناتر|مركز|كتاب|library|center|centre|book/ },
+        { theme: "document", match: /ملخص|مذكرة|ورق|مراجعة|document|summary|note|review/ },
+      ];
+      const theme = iconThemes.find((item) => item.match.test(searchableName))?.theme || "folder";
+      const iconPaths = {
+        exam: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6M8.5 11l1.8 1.8 4-4M8.5 17h7"/>',
+        lecture: '<rect x="3.5" y="4.5" width="17" height="12" rx="2"/><path d="m10 9 5 2-5 2zM8 20h8m-4-3.5V20"/>',
+        section: '<circle cx="9" cy="8" r="3"/><path d="M3.5 19v-1.5a5.5 5.5 0 0 1 11 0V19zM16 5.5a3 3 0 0 1 0 5.8m1.5 2.2a4.5 4.5 0 0 1 3 4.2V19"/>',
+        tax: '<path d="M6 3.5h8l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20z"/><path d="M14 3.5V8h4M9 12h6m-6 4h2m2 0h2"/>',
+        finance: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5c-.7-.7-1.7-1-3-1-1.8 0-3 .9-3 2.2 0 3.2 6 1.3 6 4.4 0 1.3-1.2 2.3-3.2 2.3-1.5 0-2.7-.5-3.5-1.3M12 5.5v13"/>',
+        calculator: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8v3H8zM8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01M16 17h.01"/>',
+        business: '<path d="M3 21h18M5 21V6l7-3 7 3v15M9 9h.01M15 9h.01M9 13h.01M15 13h.01M10 21v-4h4v4"/>',
+        library: '<path d="M4 19.5V5.8a2 2 0 0 1 2-2h13v15.7H6a2 2 0 0 0-2 2zm0 0a2 2 0 0 1 2-2h13"/><path d="M8 7h7M8 10h7"/>',
+        document: '<path d="M6 3.5h8l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20z"/><path d="M14 3.5V8h4M9 12h6m-6 4h6"/>',
+        folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 10h18"/>',
+      };
+      icon.dataset.theme = theme;
+      icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true">${iconPaths[theme]}</svg>`;
+    }
+    const name = document.createElement("strong");
+    name.textContent = category.name_ar;
+    const count = document.createElement("span");
+    count.className = "category-card-count";
+    count.textContent = comingSoon ? currentText().comingSoon : `${countCategoryFiles(category.id)} ملف`;
+    const arrow = document.createElement("span");
+    arrow.className = "category-card-arrow";
+    arrow.textContent = "←";
+    arrow.setAttribute("aria-hidden", "true");
+    card.append(icon, name);
+    if (descriptionText) {
+      const description = document.createElement("span");
+      description.className = "category-card-description";
+      description.textContent = descriptionText;
+      card.append(description);
+    }
+    card.append(count, arrow);
+    return card;
+  }));
+  categoryCards.hidden = children.length === 0;
+  renderCategories();
+}
+
 function renderCategories() {
   const text = currentText();
   const byParent = new Map();
@@ -1143,7 +1371,9 @@ function renderCategories() {
 function getCategoryLabel(category) {
   const names = [];
   let current = category;
-  while (current) {
+  const visited = new Set();
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
     names.unshift(
       language === "en" && current.name_en
         ? current.name_en
@@ -1218,27 +1448,14 @@ function fileUrl(fileName) {
 function renderFiles() {
   const text = currentText();
   const query = normalizeSearch(searchInput.value);
-  const selectedCategoryIds = new Set();
-  if (activeCategory !== "all" && cloudLibraryEnabled) {
-    selectedCategoryIds.add(activeCategory);
-    let addedCategory;
-    do {
-      addedCategory = false;
-      for (const category of categories) {
-        if (category.parent_id && selectedCategoryIds.has(category.parent_id) &&
-            !selectedCategoryIds.has(category.id)) {
-          selectedCategoryIds.add(category.id);
-          addedCategory = true;
-        }
-      }
-    } while (addedCategory);
-  }
+  const visibleCategoryIds = activeCategory !== "all"
+    ? getCategoryTreeIds(activeCategory)
+    : activeSemester
+      ? new Set(categoriesForSemester(activeSemester.id).map((category) => category.id))
+      : null;
   const visibleFiles = availableFiles.filter((file) => {
-    const matchesCategory =
-      activeCategory === "all" ||
-      (cloudLibraryEnabled
-        ? selectedCategoryIds.has(file.category_id)
-        : file.category === activeCategory);
+    const matchesCategory = !visibleCategoryIds ||
+      visibleCategoryIds.has(file.category_id);
     const categoryName = cloudLibraryEnabled
       ? getCategoryLabel(file.categories || { name_ar: file.category, name_en: file.categoryNameEn })
       : text.categories[file.category] || file.category;
@@ -1286,7 +1503,17 @@ function renderFiles() {
         name_en: file.categoryNameEn,
       })
       : text.categories[file.category] || file.category;
-    details.append(title, category);
+    const metadata = document.createElement("span");
+    metadata.className = "file-meta";
+    const extension = file.name.match(/\.[^.]+$/)?.[0].slice(1).toUpperCase();
+    const fileType = extension || (mimeType.startsWith("application/")
+      ? mimeType.split("/")[1].split(".").pop().toUpperCase()
+      : mimeType.split("/")[0].toUpperCase());
+    metadata.textContent = [
+      fileType,
+      Number(file.size_bytes) > 0 ? formatLibraryFileSize(file.size_bytes) : "",
+    ].filter(Boolean).join(" · ");
+    details.append(title, category, metadata);
     const favoriteButton = document.createElement("button");
     favoriteButton.className = "file-favorite-button";
     favoriteButton.type = "button";
@@ -1441,13 +1668,36 @@ function renderFiles() {
   totalCount.textContent = String(availableFiles.length);
   resultCount.textContent = text.count(visibleFiles.length);
   footerCount.textContent = text.count(availableFiles.length);
-  emptyState.textContent = text.empty;
+  emptyState.textContent = !query && activeCategory !== "all"
+    ? "لا توجد ملفات في هذا التصنيف حاليًا."
+    : text.empty;
   emptyState.hidden = visibleFiles.length > 0;
   fileGrid.hidden = visibleFiles.length === 0;
   renderPersonalSections();
 }
 
+function formatLibraryFileSize(bytes) {
+  const size = Number(bytes);
+  if (!Number.isFinite(size) || size <= 0) return "";
+  const units = ["بايت", "KB", "MB", "GB"];
+  const unitIndex = Math.min(Math.floor(Math.log(size) / Math.log(1024)), units.length - 1);
+  const formatted = new Intl.NumberFormat(language === "ar" ? "ar" : "en", {
+    maximumFractionDigits: unitIndex === 0 ? 0 : 1,
+  }).format(size / 1024 ** unitIndex);
+  return `${formatted} ${units[unitIndex]}`;
+}
+
 async function loadCloudLibrary() {
+  libraryLoadError.hidden = true;
+  libraryRetry.hidden = true;
+  if (!semesterGrid.childElementCount && !semesters.length) {
+    semesterGrid.replaceChildren(...Array.from({ length: 2 }, () => {
+      const skeleton = document.createElement("div");
+      skeleton.className = "semester-skeleton";
+      skeleton.setAttribute("aria-hidden", "true");
+      return skeleton;
+    }));
+  }
   const library = await getPublicLibrary();
   const previousIds = new Set(notifications.map((notification) => notification.id));
   const newNotifications = notificationsLoaded
@@ -1458,6 +1708,7 @@ async function loadCloudLibrary() {
     key: category.name_ar,
     available: !category.is_coming_soon,
   }));
+  semesters = library.semesters;
   homepageSections = library.homepageSections.length
     ? library.homepageSections
     : defaultHomepageSections;
@@ -1465,6 +1716,25 @@ async function loadCloudLibrary() {
   notifications = library.notifications;
   notificationsLoaded = true;
   cloudLibraryEnabled = true;
+  renderSemesters();
+  const requestedCategoryId = new URLSearchParams(window.location.search).get("category");
+  const requestedSemesterId = new URLSearchParams(window.location.search).get("semester");
+  if (requestedCategoryId) {
+    const requestedCategory = categories.find((category) => category.id === requestedCategoryId);
+    let root = requestedCategory;
+    while (root?.parent_id) {
+      root = categories.find((category) => category.id === root.parent_id);
+    }
+    const requestedSemester = semesters.find((semester) =>
+      semester.id === (requestedSemesterId || root?.semester_id) &&
+      semester.status === "active");
+    if (requestedCategory && requestedSemester) {
+      activeSemester = requestedSemester;
+      activeCategory = requestedCategory.id;
+      semesterHome.hidden = true;
+      termContent.hidden = false;
+    }
+  }
   if (newNotifications.length && document.visibilityState === "visible") {
     playNotificationSound();
   }
@@ -1475,10 +1745,37 @@ async function loadCloudLibrary() {
     activeCategory = "all";
   }
   renderCategories();
+  if (activeSemester && !semesters.some((semester) => semester.id === activeSemester.id)) {
+    activeSemester = null;
+    activeCategory = "all";
+    semesterHome.hidden = false;
+    termContent.hidden = true;
+  }
+  if (activeSemester) renderCategoryBrowser();
   renderFiles();
   renderNotifications();
   renderStudyPlanner();
   applyHomepageSections();
+}
+
+libraryRetry.addEventListener("click", () => {
+  loadCloudLibrary().catch((error) => {
+    showLibraryError(error);
+  });
+});
+
+function showLibraryError(error) {
+  semesterGrid.replaceChildren();
+  libraryLoadError.textContent = libraryErrorMessage(error);
+  libraryLoadError.hidden = false;
+  libraryRetry.hidden = false;
+}
+
+function libraryErrorMessage(error) {
+  if (["42P01", "PGRST205", "42703", "PGRST204"].includes(error.code)) {
+    return "قاعدة بيانات الفصول غير مهيأة بعد. شغّل database/semester-library-migration.sql في Supabase ثم أعد المحاولة.";
+  }
+  return `تعذر تحميل المكتبة: ${error.message}`;
 }
 
 function unlockNotificationSound() {
@@ -1963,6 +2260,7 @@ if (localFeaturePreview) {
       });
     })
     .catch((error) => {
+      showLibraryError(error);
       showToast(error.message || "تعذر تحميل المكتبة من قاعدة البيانات.");
     });
 }

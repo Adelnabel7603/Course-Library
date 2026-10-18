@@ -38,7 +38,8 @@
             <a href="#dashboard-overview" aria-current="location">نظرة عامة</a>
             <a href="#homepage-sections-panel">أقسام الصفحة الرئيسية</a>
             <a href="#calendar-events-panel">الجداول الدراسية</a>
-            <a href="#categories-panel">المواد والتصنيفات</a>
+            <a href="#semester-management-panel">إدارة الفصول والتصنيفات</a>
+            <a href="#categories-panel">التصنيفات</a>
             <a href="#file-form-panel">رفع الملفات</a>
             <a href="#notifications-panel">الإشعارات والإعلانات</a>
             <a href="#files-panel">مكتبة الملفات</a>
@@ -60,6 +61,14 @@
             </div>
             <p id="homepage-section-note" class="muted" hidden></p>
             <ol id="homepage-section-list" class="homepage-section-list"></ol>
+          </section>
+
+          <section class="panel" id="semester-management-panel">
+            <div class="panel-heading">
+              <div><h2>إدارة الفصول والتصنيفات</h2><p class="muted">عدّل بطاقات الفصول وحالتها ووصفها. تفعيل الترم الثاني يتيح التصفح دون نقل الملفات الحالية.</p></div>
+            </div>
+            <p id="semester-management-note" class="muted" hidden></p>
+            <div id="semester-admin-list" class="semester-admin-list"></div>
           </section>
 
           <section class="panel calendar-events-panel" id="calendar-events-panel">
@@ -101,13 +110,14 @@
             <span class="category-heading-icon" aria-hidden="true">✳</span>
             <div>
               <p class="eyebrow">تنظيم المكتبة</p>
-              <h2>التصنيفات</h2>
-              <p class="muted">رتّب موادك وأنشئ فلاتر تسهّل على الزوار الوصول إلى الملفات.</p>
+              <h2>إدارة التصنيفات</h2>
+              <p class="muted">أنشئ التصنيفات وانقلها داخل الشجرة، وتابع عدد الملفات التابعة لها.</p>
             </div>
           </div>
           <span class="category-total"><strong id="category-count">0</strong> تصنيف</span>
         </div>
         <form id="category-form" class="category-create-form">
+          <input name="id" type="hidden" />
           <div class="category-form-heading">
             <div>
               <h3>إضافة تصنيف جديد</h3>
@@ -128,14 +138,30 @@
               <span><span class="field-icon" aria-hidden="true">↳</span> داخل تصنيف رئيسي <span class="optional-label">اختياري</span></span>
               <select name="parent_id"></select>
             </label>
-            <label class="coming-soon-option">
-              <input name="is_coming_soon" type="checkbox" />
-              <span class="coming-soon-toggle" aria-hidden="true"></span>
-              <span><strong>إظهاره قريبًا</strong><small>أضف شارة «قريبًا» بدل الملفات</small></span>
+            <label class="category-input">
+              <span>الفصل الدراسي للتصنيف الرئيسي</span>
+              <select name="semester_id"></select>
+            </label>
+            <label class="category-input">
+              <span>الوصف</span>
+              <input name="description" maxlength="300" placeholder="وصف قصير يظهر للطلاب" />
+            </label>
+            <label class="category-input">
+              <span>رمز الأيقونة</span>
+              <input name="icon" maxlength="8" value="📁" aria-label="رمز أيقونة التصنيف" />
+            </label>
+            <label class="category-input">
+              <span>الحالة</span>
+              <select name="category_status">
+                <option value="active">متاح</option>
+                <option value="coming_soon">قريبًا</option>
+                <option value="hidden">مخفي</option>
+              </select>
             </label>
             <button class="primary-button category-submit" type="submit">
               <span aria-hidden="true">＋</span> إضافة التصنيف
             </button>
+            <button class="secondary-button category-cancel-edit" id="cancel-category-edit" type="button" hidden>إلغاء التعديل</button>
           </div>
         </form>
         <div id="category-list" class="category-admin-list"></div>
