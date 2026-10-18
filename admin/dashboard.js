@@ -1160,8 +1160,7 @@ async function uploadAsset(file, prefix, onProgress = () => {}, options = {}) {
   if (!data.session) throw new Error("انتهت جلسة الإدارة. سجّل الدخول مجددًا ثم أعد الرفع.");
 
   if (file.size > resumableUploadThreshold) {
-    tusClientPromise ||= import("https://esm.sh/tus-js-client@4");
-    const { Upload } = await tusClientPromise;
+    const Upload = await loadTusUpload();
     const endpoint = new URL("/storage/v1/upload/resumable", supabaseConfig.url).href;
     await new Promise((resolve, reject) => {
       let settled = false;
@@ -1228,6 +1227,27 @@ async function uploadAsset(file, prefix, onProgress = () => {}, options = {}) {
     }
   }
   throw new Error("تعذر رفع الملف بعد عدة محاولات.");
+}
+
+async function loadTusUpload() {
+  if (window.tus?.Upload) return window.tus.Upload;
+  tusClientPromise ||= new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/tus-js-client@4.3.1/dist/tus.min.js";
+    script.async = true;
+    script.onload = () => {
+      if (window.tus?.Upload) resolve(window.tus.Upload);
+      else reject(new Error("تعذر تهيئة الرفع المجزّأ. أعد المحاولة."));
+    };
+    script.onerror = () => reject(new Error("تعذر تحميل مكوّن الرفع المجزّأ. تحقق من الاتصال وحاول مجددًا."));
+    document.head.append(script);
+  });
+  try {
+    return await tusClientPromise;
+  } catch (error) {
+    tusClientPromise = null;
+    throw error;
+  }
 }
 
 function createUploadObjectPath(file, prefix) {
