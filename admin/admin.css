@@ -399,6 +399,14 @@ button:disabled { cursor: wait; opacity: .6; }
 .cover-picker:focus-within { outline: 3px solid rgb(75 124 103 / 15%); }
 .upload-progress { margin-top: 0; }
 .upload-status { margin: -5px 0 0; color: var(--muted); font-size: .82rem; }
+.upload-file-statuses { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.upload-file-statuses:empty { display: none; }
+.upload-file-status { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.upload-file-status-name { overflow-wrap: anywhere; font-size: .82rem; font-weight: 700; }
+.upload-file-status-state { color: var(--muted); font-size: .78rem; white-space: nowrap; }
+.upload-file-status progress { grid-column: 1 / -1; margin: 0; }
+.upload-file-status-error { grid-column: 1 / -1; margin: 0; color: #963b33; font-size: .78rem; overflow-wrap: anywhere; }
+.upload-file-status[data-state="completed"] .upload-file-status-state { color: #276747; }
 .wide { grid-column: 1 / -1; }
 .form-actions { display: flex; gap: 9px; }
 .setup-steps { margin-block: 0 14px; color: var(--muted); }

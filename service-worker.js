@@ -1,4 +1,4 @@
-const CACHE_NAME = "course-library-semester-v1";
+const CACHE_NAME = "course-library-v13";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -18,6 +18,7 @@ const APP_SHELL = [
   "./admin/login.js",
   "./admin/dashboard.html",
   "./admin/dashboard.js",
+    "./admin/upload-transport.js",
   "./admin/calendar-management.js",
   "./admin/admin.css",
 ];

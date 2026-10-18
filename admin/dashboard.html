@@ -206,9 +206,11 @@
           <div class="form-actions wide">
             <button class="primary-button" type="submit">حفظ الملف</button>
             <button class="secondary-button" id="cancel-edit" type="button" hidden>إلغاء التعديل</button>
+            <button class="secondary-button" id="cancel-current-uploads" type="button" hidden>إيقاف الرفع الجاري</button>
           </div>
           <progress id="upload-progress" class="wide upload-progress" max="1" value="0" hidden></progress>
           <p id="upload-status" class="upload-status wide" aria-live="polite" hidden></p>
+          <ul id="upload-file-statuses" class="upload-file-statuses wide" aria-live="polite"></ul>
         </form>
       </section>
 

@@ -1,6 +1,7 @@
 import { legacyCategories, legacyFiles } from "../services/legacy-catalog.js";
 import { supabaseConfig } from "../config.js";
 import { initializeCalendarManagement } from "./calendar-management.js";
+import { runUploadQueue, uploadObjectWithXhr } from "./upload-transport.js";
 
 const isLocalPreviewHost = window.location.protocol === "file:" ||
   (window.location.protocol === "http:" &&
@@ -48,6 +49,8 @@ const coverInput = fileForm.elements.cover;
 const coverFileName = document.querySelector("#cover-file-name");
 const uploadProgress = document.querySelector("#upload-progress");
 const uploadStatus = document.querySelector("#upload-status");
+const uploadFileStatuses = document.querySelector("#upload-file-statuses");
+const cancelCurrentUploads = document.querySelector("#cancel-current-uploads");
 const migrationInput = document.querySelector("#legacy-files");
 const migrationProgress = document.querySelector("#migration-progress");
 const migrationButton = document.querySelector("#migration-button");
@@ -65,6 +68,9 @@ let homepageSections = defaultHomepageSections.map((section) => ({ ...section })
 let homepageSectionSettingsAvailable = true;
 let toastTimeout;
 let tusClientPromise;
+let fileUploadBatch = null;
+let isUploadBatchRunning = false;
+let uploadBatchAbortController = null;
 let notificationPreviewUrl;
 let editingNotification = null;
 let removeCurrentNotificationImage = false;
@@ -79,6 +85,7 @@ const maxFileSize = 1024 ** 3;
 const maxCoverSize = 50 * 1024 ** 2;
 const maxNotificationImageSize = 10 * 1024 ** 2;
 const resumableUploadThreshold = 6 * 1024 ** 2;
+const uploadConcurrency = 3;
 const notificationImageMimeTypes = new Set([
   "image/jpeg",
   "image/png",
@@ -126,9 +133,12 @@ const mimeTypesByExtension = {
 };
 
 function getUploadMimeType(file) {
-  if (file.type) return file.type;
+  const reportedType = String(file.type || "").toLowerCase();
+  if (reportedType && !["application/octet-stream", "binary/octet-stream"].includes(reportedType)) {
+    return reportedType;
+  }
   const extension = file.name.match(/\.[^.]+$/)?.[0].toLowerCase();
-  return mimeTypesByExtension[extension] || "application/octet-stream";
+  return mimeTypesByExtension[extension] || reportedType || "application/octet-stream";
 }
 
 function updateNotificationAttachmentSelection() {
@@ -1159,96 +1169,392 @@ async function moveFile(file, direction) {
   } catch (error) { notify(error.message, true); }
 }
 
-async function uploadAsset(file, prefix, onProgress = () => {}) {
+async function uploadAsset(file, prefix, onProgress = () => {}, options = {}) {
+  const { signal, objectPath: savedPath, upsert = false } = options;
   const extension = file.name.match(/\.[A-Za-z0-9]{1,10}$/)?.[0].toLowerCase() || "";
-  const path = `${prefix}/${crypto.randomUUID()}${extension}`;
+  const path = savedPath || `${prefix}/${crypto.randomUUID()}${extension}`;
   const contentType = getUploadMimeType(file);
-  const body = new Blob([await file.arrayBuffer()], { type: contentType });
+  const { data, error } = await client.auth.getSession();
+  if (error) throw error;
+  if (!data.session) throw new Error("انتهت جلسة الإدارة. سجّل الدخول مجددًا ثم أعد الرفع.");
+
   if (file.size > resumableUploadThreshold) {
     tusClientPromise ||= import("https://esm.sh/tus-js-client@4");
     const { Upload } = await tusClientPromise;
-    const { data, error } = await client.auth.getSession();
-    if (error) throw error;
-    if (!data.session) throw new Error("انتهت جلسة الإدارة. سجّل الدخول مجددًا ثم أعد الرفع.");
     const endpoint = new URL("/storage/v1/upload/resumable", supabaseConfig.url).href;
     await new Promise((resolve, reject) => {
-      const upload = new Upload(body, {
+      let settled = false;
+      let upload;
+      const cleanup = () => signal?.removeEventListener("abort", abort);
+      const finish = (callback, value) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        callback(value);
+      };
+      const abort = () => {
+        void upload?.abort(true).catch(() => {});
+        finish(reject, new DOMException("تم إلغاء الرفع.", "AbortError"));
+      };
+      upload = new Upload(file, {
         endpoint,
         chunkSize: resumableUploadThreshold,
         retryDelays: [0, 1000, 3000, 5000],
         headers: {
           authorization: `Bearer ${data.session.access_token}`,
           apikey: supabaseConfig.anonKey,
-          "x-upsert": "false",
+          "x-upsert": String(upsert),
         },
         metadata: {
           bucketName: "library-files",
           objectName: path,
           contentType,
         },
-        onError: reject,
-        onProgress: (uploadedBytes) => onProgress(uploadedBytes),
-        onSuccess: resolve,
+        onError: (uploadError) => finish(reject, uploadError),
+        onProgress: (uploadedBytes) => onProgress(uploadedBytes, file.size),
+        onSuccess: () => {
+          onProgress(file.size, file.size);
+          finish(resolve, path);
+        },
       });
+      if (signal?.aborted) {
+        abort();
+        return;
+      }
+      signal?.addEventListener("abort", abort, { once: true });
       upload.start();
     });
     return path;
   }
 
-  const storage = client.storage.from("library-files");
-  let result;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      result = await storage.upload(path, body, {
+      return await uploadObjectWithXhr({
+        supabaseUrl: supabaseConfig.url,
+        bucket: "library-files",
+        objectPath: path,
+        file,
         contentType,
-        upsert: attempt > 0,
+        accessToken: data.session.access_token,
+        anonKey: supabaseConfig.anonKey,
+        upsert: upsert || attempt > 0,
+        signal,
+        onProgress,
       });
-    } catch (error) {
-      if (attempt === 2 || !isRetryableUploadError(error)) throw error;
+    } catch (uploadError) {
+      if (signal?.aborted || !uploadError.retryable || attempt === 2) throw uploadError;
       await new Promise((resolve) => setTimeout(resolve, 750 * (attempt + 1)));
-      continue;
     }
-    if (!result.error) break;
-    if (attempt === 2 || !isRetryableUploadError(result.error)) {
-      throw result.error;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 750 * (attempt + 1)));
   }
-  assertSuccess(result);
-  onProgress(file.size);
-  return path;
+  throw new Error("تعذر رفع الملف بعد عدة محاولات.");
 }
 
-function isRetryableUploadError(error) {
-  const statusCode = Number(error?.statusCode);
-  if ([408, 429, 500, 502, 503, 504].includes(statusCode)) return true;
-  return [error, error?.cause, error?.originalError].some((cause) =>
-    cause instanceof TypeError ||
-    /failed to fetch|network error|load failed|ssl|connection|socket/i.test(
-      cause?.message || "",
-    ),
-  );
+function createUploadObjectPath(file, prefix) {
+  const extension = file.name.match(/\.[A-Za-z0-9]{1,10}$/)?.[0].toLowerCase() || "";
+  return `${prefix}/${crypto.randomUUID()}${extension}`;
+}
+
+function safeUploadError(error) {
+  if (error?.name === "AbortError") return "أُوقف هذا الرفع.";
+  return String(error?.message || "تعذر رفع الملف.")
+    .replace(/\b(?:bearer|token|apikey|service.role)\b\s*[:=]?\s*\S+/gi, "بيانات اعتماد")
+    .replace(/[\r\n\t]+/g, " ")
+    .slice(0, 240);
+}
+
+function renderUploadFileStatus(entry) {
+  if (!entry.elements) {
+    const item = document.createElement("li");
+    item.className = "upload-file-status";
+    const name = document.createElement("strong");
+    name.className = "upload-file-status-name";
+    name.textContent = entry.file.name;
+    const state = document.createElement("span");
+    state.className = "upload-file-status-state";
+    const progress = document.createElement("progress");
+    progress.max = 100;
+    progress.setAttribute("aria-label", `تقدم رفع ${entry.file.name}`);
+    const error = document.createElement("p");
+    error.className = "upload-file-status-error";
+    item.append(name, state, progress, error);
+    uploadFileStatuses.append(item);
+    entry.elements = { item, state, progress, error };
+  }
+
+  const labels = {
+    waiting: "في الانتظار",
+    uploading: "جارٍ الرفع",
+    completed: "اكتمل",
+    failed: "فشل",
+  };
+  const percent = Math.floor(entry.progress || 0);
+  entry.elements.item.dataset.state = entry.status;
+  entry.elements.state.textContent = entry.status === "uploading"
+    ? `${labels[entry.status]} · ${percent}%`
+    : labels[entry.status];
+  entry.elements.progress.value = percent;
+  entry.elements.progress.hidden = entry.status === "waiting";
+  entry.elements.error.textContent = entry.error || "";
+  entry.elements.error.hidden = !entry.error;
+}
+
+function setUploadEntryProgress(batch, entry, bytes) {
+  const nextBytes = Math.max(0, Math.min(entry.totalBytes, bytes));
+  batch.transferredBytes += nextBytes - entry.progressBytes;
+  entry.progressBytes = nextBytes;
+  entry.progress = entry.totalBytes ? (nextBytes / entry.totalBytes) * 100 : 100;
+  renderUploadFileStatus(entry);
+  uploadProgress.value = Math.max(0, batch.transferredBytes);
+}
+
+function renderUploadBatch(batch) {
+  for (const entry of batch.entries) renderUploadFileStatus(entry);
+  uploadProgress.max = Math.max(1, batch.totalBytes);
+  uploadProgress.value = Math.max(0, batch.transferredBytes);
+  uploadProgress.hidden = false;
+  uploadStatus.hidden = false;
+  const completed = batch.entries.filter((entry) => entry.saved).length;
+  uploadStatus.textContent = batch.running
+    ? `جارٍ رفع ${batch.entries.length} ملفات · تم حفظ ${completed}`
+    : `تم حفظ ${completed} من ${batch.entries.length} ملف`;
+
+  const submit = fileForm.querySelector('[type="submit"]');
+  const cancelEdit = document.querySelector("#cancel-edit");
+  const incomplete = batch.entries.some((entry) => !entry.saved);
+  submit.textContent = incomplete && !batch.running
+    ? "إعادة محاولة الملفات غير المكتملة"
+    : "حفظ الملف";
+  cancelEdit.textContent = incomplete ? "إنهاء الدفعة" : "إلغاء التعديل";
+  cancelEdit.hidden = !incomplete || batch.running;
+  cancelCurrentUploads.hidden = !batch.running;
+  uploadInput.disabled = incomplete;
+  uploadEditors.querySelectorAll('input[type="file"]').forEach((input) => {
+    input.disabled = incomplete;
+  });
+  fileSelection.querySelectorAll("button").forEach((button) => {
+    button.disabled = incomplete;
+  });
+}
+
+function createFileUploadBatch(entries, basePosition) {
+  uploadFileStatuses.replaceChildren();
+  const batchEntries = entries.map(({ file, draft }, index) => {
+    const coverSize = draft.cover?.size || 0;
+    return {
+      index,
+      file,
+      draft,
+      objectPath: null,
+      coverPath: null,
+      documentUploaded: false,
+      coverUploaded: false,
+      documentAttempts: 0,
+      coverAttempts: 0,
+      saved: false,
+      status: "waiting",
+      error: "",
+      progress: 0,
+      progressBytes: 0,
+      totalBytes: file.size + coverSize,
+      elements: null,
+    };
+  });
+  const batch = {
+    entries: batchEntries,
+    basePosition,
+    totalBytes: batchEntries.reduce((total, entry) => total + entry.totalBytes, 0),
+    transferredBytes: 0,
+    running: false,
+    controller: null,
+  };
+  fileUploadBatch = batch;
+  return batch;
+}
+
+function fileRecordForUploadEntry(entry, basePosition) {
+  return {
+    name: entry.draft.name.trim(),
+    description: entry.draft.description,
+    category_id: entry.draft.categoryId,
+    object_path: entry.objectPath,
+    cover_path: entry.coverPath,
+    mime_type: getUploadMimeType(entry.file),
+    size_bytes: entry.file.size,
+    is_published: entry.draft.isPublished,
+    is_new: entry.draft.isPublished,
+    position: basePosition + entry.index,
+  };
+}
+
+async function processFileUploadBatch(batch) {
+  if (batch.running || isUploadBatchRunning) return;
+  batch.running = true;
+  isUploadBatchRunning = true;
+  batch.controller = new AbortController();
+  uploadBatchAbortController = batch.controller;
+  const signal = batch.controller.signal;
+  const readyToSave = [];
+  let notificationWarning = "";
+  renderUploadBatch(batch);
+
+  try {
+    const pendingUploads = batch.entries.filter((entry) =>
+      !entry.saved && (!entry.documentUploaded || (entry.draft.cover && !entry.coverUploaded)),
+    );
+    await runUploadQueue(pendingUploads, async (entry) => {
+      const cover = entry.draft.cover;
+      const uploadedBytes = (entry.documentUploaded ? entry.file.size : 0) +
+        (entry.coverUploaded ? cover?.size || 0 : 0);
+      setUploadEntryProgress(batch, entry, uploadedBytes);
+
+      if (!entry.objectPath) entry.objectPath = createUploadObjectPath(entry.file, "documents");
+      if (!entry.documentUploaded) {
+        entry.documentAttempts += 1;
+        await uploadAsset(entry.file, "documents", (bytesUploaded) => {
+          setUploadEntryProgress(batch, entry, bytesUploaded + (entry.coverUploaded ? cover?.size || 0 : 0));
+        }, {
+          signal,
+          objectPath: entry.objectPath,
+          upsert: entry.documentAttempts > 1,
+        });
+        entry.documentUploaded = true;
+        setUploadEntryProgress(batch, entry, entry.file.size + (entry.coverUploaded ? cover?.size || 0 : 0));
+      }
+
+      if (cover && !entry.coverUploaded) {
+        if (!entry.coverPath) entry.coverPath = createUploadObjectPath(cover, "covers");
+        entry.coverAttempts += 1;
+        await uploadAsset(cover, "covers", (bytesUploaded) => {
+          setUploadEntryProgress(batch, entry, (entry.documentUploaded ? entry.file.size : 0) + bytesUploaded);
+        }, {
+          signal,
+          objectPath: entry.coverPath,
+          upsert: entry.coverAttempts > 1,
+        });
+        entry.coverUploaded = true;
+        setUploadEntryProgress(batch, entry, entry.totalBytes);
+      }
+    }, uploadConcurrency, {
+      signal,
+      onChange: (entry) => renderUploadFileStatus(entry),
+    });
+
+    for (const entry of batch.entries) {
+      if (!entry.saved && entry.status === "failed") {
+        const uploadedBytes = (entry.documentUploaded ? entry.file.size : 0) +
+          (entry.coverUploaded ? entry.draft.cover?.size || 0 : 0);
+        setUploadEntryProgress(batch, entry, uploadedBytes);
+      }
+    }
+
+    readyToSave.push(...batch.entries.filter((entry) =>
+      !entry.saved && entry.documentUploaded && (!entry.draft.cover || entry.coverUploaded),
+    ));
+    if (readyToSave.length) {
+      try {
+        const paths = readyToSave.map((entry) => entry.objectPath);
+        const existingRows = assertSuccess(await client.from("files")
+          .select("id, name, description, category_id, is_published, object_path")
+          .in("object_path", paths));
+        const knownPaths = new Set(existingRows.map((row) => row.object_path));
+        const missingEntries = readyToSave.filter((entry) => !knownPaths.has(entry.objectPath));
+        let insertedRows = [];
+        if (missingEntries.some((entry) => entry.draft.isPublished)) {
+          assertSuccess(await client.from("files").update({ is_new: false }).eq("is_new", true));
+        }
+        if (missingEntries.length) {
+          insertedRows = assertSuccess(await client.from("files")
+            .insert(missingEntries.map((entry) => fileRecordForUploadEntry(entry, batch.basePosition)))
+            .select("id, name, description, category_id, is_published, object_path"));
+        }
+        const rowsByPath = new Map([...existingRows, ...insertedRows].map((row) => [row.object_path, row]));
+        for (const entry of readyToSave) {
+          if (!rowsByPath.has(entry.objectPath)) {
+            entry.status = "failed";
+            entry.error = "تم رفع الملف لكن تعذر تأكيد حفظ بياناته. أعد المحاولة.";
+            continue;
+          }
+          entry.saved = true;
+          entry.status = "completed";
+          entry.error = "";
+          setUploadEntryProgress(batch, entry, entry.totalBytes);
+        }
+        if (insertedRows.some((row) => row.is_published)) {
+          try {
+            notificationWarning = await publishFileNotifications(insertedRows.filter((row) => row.is_published));
+          } catch (error) {
+            notificationWarning = `تعذر نشر إشعار بعض الملفات: ${safeUploadError(error)}`;
+          }
+        }
+        await loadData();
+      } catch (error) {
+        for (const entry of readyToSave) {
+          if (entry.saved) continue;
+          entry.status = "failed";
+          entry.error = `تم رفع الملف لكن تعذر حفظ بياناته: ${safeUploadError(error)}`;
+        }
+      }
+    }
+
+    const unsavedEntries = batch.entries.filter((entry) => !entry.saved);
+    if (!unsavedEntries.length) {
+      const count = batch.entries.length;
+      batch.running = false;
+      isUploadBatchRunning = false;
+      uploadBatchAbortController = null;
+      batch.controller = null;
+      resetFileForm();
+      notify(notificationWarning || `تم رفع وحفظ ${count} ملفًا بنجاح.`, Boolean(notificationWarning));
+      return;
+    }
+
+    const failedCount = unsavedEntries.length;
+    const message = signal.aborted
+      ? `أُوقف الرفع. تم حفظ الملفات المكتملة، وبقي ${failedCount} ملف لإكماله أو إعادة محاولته.`
+      : `تم حفظ الملفات المكتملة، وتعثر ${failedCount}. أعد المحاولة من الزر؛ ستُعاد الملفات غير المكتملة فقط.`;
+    notify(notificationWarning ? `${message} ${notificationWarning}` : message, true);
+  } catch (error) {
+    for (const entry of batch.entries) {
+      if (!entry.saved && entry.status === "uploading") {
+        entry.status = "failed";
+        entry.error = safeUploadError(error);
+      }
+    }
+    notify(`تعذر إكمال دفعة الرفع: ${safeUploadError(error)}`, true);
+  } finally {
+    batch.running = false;
+    isUploadBatchRunning = false;
+    uploadBatchAbortController = null;
+    batch.controller = null;
+    if (fileUploadBatch === batch) renderUploadBatch(batch);
+  }
 }
 
 async function uploadNotificationImage(file) {
   const extension = file.name.match(/\.[A-Za-z0-9]{1,8}$/)?.[0].toLowerCase() || "";
   const path = `${crypto.randomUUID()}/${crypto.randomUUID()}${extension}`;
-  const body = new Blob([await file.arrayBuffer()], { type: file.type });
-  const { data, error } = await client.storage.from("notification-images").upload(path, body, {
-    contentType: file.type,
-    cacheControl: "31536000",
-    upsert: false,
-  });
-  if (error) {
+  const { data: session, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!session.session) throw new Error("انتهت جلسة الإدارة. سجّل الدخول مجددًا ثم أعد الرفع.");
+  try {
+    await uploadObjectWithXhr({
+      supabaseUrl: supabaseConfig.url,
+      bucket: "notification-images",
+      objectPath: path,
+      file,
+      contentType: file.type,
+      accessToken: session.session.access_token,
+      anonKey: supabaseConfig.anonKey,
+    });
+  } catch (error) {
     if (
-      error.statusCode === "404" ||
-      /bucket.*not found|not found.*bucket/i.test(error.message)
+      /bucket.*not found|not found.*bucket/i.test(error.message || "")
     ) {
       throw new Error("صورة الإشعار تحتاج تشغيل database/notifications-migration.sql أولًا.");
     }
     throw error;
   }
-  return data.path;
+  return path;
 }
 
 function clearNotificationImagePreview() {
@@ -1424,6 +1730,7 @@ cancelCategoryEdit.addEventListener("click", () => {
 });
 
 function editFile(file) {
+  if (fileUploadBatch?.running) return;
   resetFileForm();
   fileForm.elements.id.value = file.id;
   fileForm.elements.name.value = file.name;
@@ -1437,8 +1744,14 @@ function editFile(file) {
 }
 
 function resetFileForm() {
+  if (fileUploadBatch?.running) return;
   fileForm.reset();
+  fileUploadBatch = null;
+  uploadBatchAbortController = null;
   uploadDrafts.clear();
+  uploadInput.disabled = false;
+  cancelCurrentUploads.hidden = true;
+  uploadFileStatuses.replaceChildren();
   fileForm.elements.id.value = "";
   fileForm.elements.position.value = "0";
   fileForm.elements.is_published.checked = true;
@@ -1447,6 +1760,7 @@ function resetFileForm() {
   uploadProgress.hidden = true;
   uploadStatus.hidden = true;
   document.querySelector("#file-form-heading").textContent = "إضافة ملف";
+  document.querySelector("#cancel-edit").textContent = "إلغاء التعديل";
   document.querySelector("#cancel-edit").hidden = true;
   renderCategoryOptions();
   updateFileSelection();
@@ -1454,12 +1768,14 @@ function resetFileForm() {
 
 document.querySelector("#cancel-edit").addEventListener("click", resetFileForm);
 uploadInput.addEventListener("change", updateFileSelection);
+cancelCurrentUploads.addEventListener("click", () => uploadBatchAbortController?.abort());
 coverInput.addEventListener("change", () => {
   coverFileName.textContent = coverInput.files[0]?.name || "تُستخدم مع ملف واحد فقط";
 });
 
 fileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (isUploadBatchRunning) return;
   const submit = fileForm.querySelector('[type="submit"]');
   submit.disabled = true;
   const values = new FormData(fileForm);
@@ -1481,6 +1797,8 @@ fileForm.addEventListener("submit", async (event) => {
     if (existing && newFiles.length > 1) {
       throw new Error("اختر ملفًا واحدًا فقط عند تعديل ملف موجود.");
     }
+    const emptyFile = newFiles.find((file) => file.size === 0);
+    if (emptyFile) throw new Error(`الملف «${emptyFile.name}» فارغ ولا يمكن رفعه.`);
     const oversizedFile = newFiles.find((file) => file.size > maxFileSize);
     if (oversizedFile) {
       throw new Error(`حجم «${oversizedFile.name}» أكبر من الحد المسموح (1 GB).`);
@@ -1531,6 +1849,9 @@ fileForm.addEventListener("submit", async (event) => {
       draft.cover && !getUploadMimeType(draft.cover).startsWith("image/"),
     );
     if (invalidBatchCover) throw new Error("اختر صورة صحيحة لكل غلاف.");
+    const emptyBatchCover = entries.find(({ draft }) => draft.cover?.size === 0);
+    if (emptyBatchCover) throw new Error(`صورة غلاف «${emptyBatchCover.file.name}» فارغة.`);
+    if (newCover?.size === 0) throw new Error("صورة الغلاف فارغة.");
     if (newCover?.size > maxCoverSize) {
       throw new Error("حجم صورة الغلاف أكبر من الحد المسموح (50 MB).");
     }
@@ -1594,6 +1915,17 @@ fileForm.addEventListener("submit", async (event) => {
       resetFileForm();
       await loadData();
       notify(`تمت إضافة ${previewRecords.length} عنصر للمعاينة المحلية فقط؛ لم يُرفع أي ملف أو إشعار للأجهزة.`);
+      return;
+    }
+    if (isBatchUpload) {
+      if (fileUploadBatch) {
+        const sameSelection = fileUploadBatch.entries.length === newFiles.length &&
+          fileUploadBatch.entries.every((entry, index) => entry.file === newFiles[index]);
+        if (!sameSelection) throw new Error("أنه الدفعة الحالية أو أعد محاولتها قبل اختيار ملفات أخرى.");
+      } else {
+        fileUploadBatch = createFileUploadBatch(entries, Number(values.get("position")) || 0);
+      }
+      await processFileUploadBatch(fileUploadBatch);
       return;
     }
     const uploads = [
@@ -1752,8 +2084,12 @@ fileForm.addEventListener("submit", async (event) => {
     }
     notify(error.message, true);
   } finally {
-    uploadProgress.hidden = true;
-    uploadStatus.hidden = true;
+    if (fileUploadBatch) renderUploadBatch(fileUploadBatch);
+    else {
+      uploadProgress.hidden = true;
+      uploadStatus.hidden = true;
+      uploadFileStatuses.replaceChildren();
+    }
     submit.disabled = false;
   }
 });
