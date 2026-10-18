@@ -972,6 +972,7 @@ async function uploadAsset(file, prefix, onProgress = () => {}) {
   const extension = file.name.match(/\.[A-Za-z0-9]{1,10}$/)?.[0].toLowerCase() || "";
   const path = `${prefix}/${crypto.randomUUID()}${extension}`;
   const contentType = getUploadMimeType(file);
+  const body = new Blob([await file.arrayBuffer()], { type: contentType });
   if (file.size > resumableUploadThreshold) {
     tusClientPromise ||= import("https://esm.sh/tus-js-client@4");
     const { Upload } = await tusClientPromise;
@@ -980,7 +981,7 @@ async function uploadAsset(file, prefix, onProgress = () => {}) {
     if (!data.session) throw new Error("انتهت جلسة الإدارة. سجّل الدخول مجددًا ثم أعد الرفع.");
     const endpoint = new URL("/storage/v1/upload/resumable", supabaseConfig.url).href;
     await new Promise((resolve, reject) => {
-      const upload = new Upload(file, {
+      const upload = new Upload(body, {
         endpoint,
         chunkSize: resumableUploadThreshold,
         retryDelays: [0, 1000, 3000, 5000],
@@ -1003,7 +1004,7 @@ async function uploadAsset(file, prefix, onProgress = () => {}) {
     return path;
   }
 
-  assertSuccess(await client.storage.from("library-files").upload(path, file, {
+  assertSuccess(await client.storage.from("library-files").upload(path, body, {
     contentType,
     upsert: false,
   }));
@@ -1014,7 +1015,8 @@ async function uploadAsset(file, prefix, onProgress = () => {}) {
 async function uploadNotificationImage(file) {
   const extension = file.name.match(/\.[A-Za-z0-9]{1,8}$/)?.[0].toLowerCase() || "";
   const path = `${crypto.randomUUID()}/${crypto.randomUUID()}${extension}`;
-  const { data, error } = await client.storage.from("notification-images").upload(path, file, {
+  const body = new Blob([await file.arrayBuffer()], { type: file.type });
+  const { data, error } = await client.storage.from("notification-images").upload(path, body, {
     contentType: file.type,
     cacheControl: "31536000",
     upsert: false,
