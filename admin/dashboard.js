@@ -1194,12 +1194,39 @@ async function uploadAsset(file, prefix, onProgress = () => {}) {
     return path;
   }
 
-  assertSuccess(await client.storage.from("library-files").upload(path, file, {
-    contentType,
-    upsert: false,
-  }));
+  const storage = client.storage.from("library-files");
+  let result;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      result = await storage.upload(path, file, {
+        contentType,
+        upsert: attempt > 0,
+      });
+    } catch (error) {
+      if (attempt === 2 || !isRetryableUploadError(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 750 * (attempt + 1)));
+      continue;
+    }
+    if (!result.error) break;
+    if (attempt === 2 || !isRetryableUploadError(result.error)) {
+      throw result.error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 750 * (attempt + 1)));
+  }
+  assertSuccess(result);
   onProgress(file.size);
   return path;
+}
+
+function isRetryableUploadError(error) {
+  const statusCode = Number(error?.statusCode);
+  if ([408, 429, 500, 502, 503, 504].includes(statusCode)) return true;
+  return [error, error?.cause, error?.originalError].some((cause) =>
+    cause instanceof TypeError ||
+    /failed to fetch|network error|load failed|ssl|connection|socket/i.test(
+      cause?.message || "",
+    ),
+  );
 }
 
 async function uploadNotificationImage(file) {
