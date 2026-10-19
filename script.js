@@ -106,6 +106,7 @@ const translations = {
     all: "الكل",
     searchPlaceholder: "ابحث عن مادة أو ملف...",
     selectCategoryPrompt: "اختر بطاقة مادة لعرض ملفاتها.",
+    selectSubcategoryPrompt: "اختر بطاقة تصنيف فرعي لعرض ملفاته.",
     noMatchingCategories: "لا توجد مواد أو ملفات مطابقة للبحث.",
     noCategoryFiles: "لا توجد ملفات في هذا التصنيف حاليًا.",
     filesHeading: "الملفات",
@@ -229,6 +230,7 @@ const translations = {
     all: "All",
     searchPlaceholder: "Search courses or files...",
     selectCategoryPrompt: "Select a course card to view its files.",
+    selectSubcategoryPrompt: "Select a subcategory card to view its files.",
     noMatchingCategories: "No courses or files match your search.",
     noCategoryFiles: "There are no files in this category yet.",
     filesHeading: "Files",
@@ -1471,7 +1473,7 @@ function renderFiles() {
   const query = normalizeSearch(searchInput.value);
   const isSelectingCategory = Boolean(activeSemester) && activeCategory === "all";
   const visibleCategoryIds = activeCategory !== "all"
-    ? getCategoryTreeIds(activeCategory)
+    ? new Set([activeCategory])
     : activeSemester
       ? new Set(categoriesForSemester(activeSemester.id).map((category) => category.id))
       : null;
@@ -1695,6 +1697,8 @@ function renderFiles() {
     ? query && !categoryCards.childElementCount
       ? text.noMatchingCategories
       : text.selectCategoryPrompt
+    : activeCategory !== "all" && categoryCards.childElementCount
+      ? text.selectSubcategoryPrompt
     : !query && activeCategory !== "all"
       ? text.noCategoryFiles
       : text.empty;
