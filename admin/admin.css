@@ -126,6 +126,70 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 3px rgb(75 124 103 / 12%);
 }
 .inline-form > input:not([type="file"]) { width: min(240px, 100%); }
+.calendar-import-form input[type="file"],
+#legacy-files,
+.notification-image-picker input[type="file"],
+.notification-attachments input[type="file"] {
+  display: block;
+  width: min(100%, 520px);
+  min-height: 50px;
+  padding: 6px;
+  border: 1px dashed #9ab6a4;
+  border-radius: 14px;
+  color: var(--ink);
+  background: linear-gradient(135deg, rgb(247 251 247 / 92%), rgb(238 245 239 / 88%));
+  box-shadow: inset 0 1px rgb(255 255 255 / 75%);
+  font-size: .84rem;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+.calendar-import-form input[type="file"]::file-selector-button,
+#legacy-files::file-selector-button,
+.notification-image-picker input[type="file"]::file-selector-button,
+.notification-attachments input[type="file"]::file-selector-button,
+.calendar-import-form input[type="file"]::-webkit-file-upload-button,
+#legacy-files::-webkit-file-upload-button,
+.notification-image-picker input[type="file"]::-webkit-file-upload-button,
+.notification-attachments input[type="file"]::-webkit-file-upload-button {
+  margin-inline-end: 9px;
+  padding: 8px 13px;
+  border: 1px solid #2b6652;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(135deg, #286451, #153f38);
+  box-shadow: 0 3px 8px rgb(21 63 56 / 16%), inset 0 1px rgb(255 255 255 / 18%);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.calendar-import-form input[type="file"]:hover,
+#legacy-files:hover,
+.notification-image-picker input[type="file"]:hover,
+.notification-attachments input[type="file"]:hover {
+  border-color: #487e66;
+  background-color: #f0f7f1;
+  box-shadow: 0 0 0 3px rgb(75 124 103 / 9%);
+}
+.calendar-import-form input[type="file"]:hover::file-selector-button,
+#legacy-files:hover::file-selector-button,
+.notification-image-picker input[type="file"]:hover::file-selector-button,
+.notification-attachments input[type="file"]:hover::file-selector-button,
+.calendar-import-form input[type="file"]:hover::-webkit-file-upload-button,
+#legacy-files:hover::-webkit-file-upload-button,
+.notification-image-picker input[type="file"]:hover::-webkit-file-upload-button,
+.notification-attachments input[type="file"]:hover::-webkit-file-upload-button {
+  box-shadow: 0 5px 11px rgb(21 63 56 / 22%), inset 0 1px rgb(255 255 255 / 20%);
+  transform: translateY(-1px);
+}
+.calendar-import-form input[type="file"]:focus-visible,
+#legacy-files:focus-visible,
+.notification-image-picker input[type="file"]:focus-visible,
+.notification-attachments input[type="file"]:focus-visible {
+  outline: 3px solid rgb(75 124 103 / 25%);
+  outline-offset: 2px;
+}
 .check-label { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .primary-button, .secondary-button, .danger-button {
   min-height: 38px;
@@ -959,6 +1023,16 @@ body.dark tbody tr {
   border-color: var(--line);
   color: var(--ink);
   background: #121a30;
+}
+
+body.dark .calendar-import-form input[type="file"],
+body.dark #legacy-files,
+body.dark .notification-image-picker input[type="file"],
+body.dark .notification-attachments input[type="file"] {
+  border-color: var(--line);
+  color: var(--ink);
+  background: linear-gradient(135deg, #1d3029, var(--surface));
+  box-shadow: inset 0 1px rgb(255 255 255 / 5%);
 }
 
 body.dark .file-category-summary {
