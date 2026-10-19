@@ -197,6 +197,7 @@
 
       <section class="panel" id="file-form-panel">
         <div class="panel-heading"><div><h2 id="file-form-heading">إضافة ملف</h2><p class="muted">ارفع ملفًا، أدخل تفاصيله، ثم انشره مباشرة في المكتبة.</p></div></div>
+        <p id="file-edit-queue-status" class="file-edit-queue-status" aria-live="polite" hidden></p>
         <form id="file-form" class="file-form">
           <input name="id" type="hidden" />
           <label class="file-default-field">اسم الملف<input name="name" maxlength="180" placeholder="اختياري؛ يُستخدم اسم الملف تلقائيًا" /></label>
@@ -282,9 +283,14 @@
           <div><h2>الملفات</h2><p id="file-count" class="muted"></p></div>
           <input id="file-search" type="search" placeholder="ابحث عن ملف..." aria-label="ابحث عن ملف" />
         </div>
+        <div class="file-selection-toolbar">
+          <label class="check-label"><input id="file-select-visible" type="checkbox" /> تحديد نتائج البحث</label>
+          <span id="file-selection-count" class="muted" aria-live="polite">لم يتم تحديد ملفات</span>
+          <button class="primary-button" id="edit-selected-files" type="button" disabled>تعديل المحدد</button>
+        </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>الملف</th><th>التصنيف</th><th>تاريخ الإضافة</th><th>التنزيلات</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+            <thead><tr><th>تحديد</th><th>الملف</th><th>التصنيف</th><th>تاريخ الإضافة</th><th>التنزيلات</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
             <tbody id="file-table-body"></tbody>
           </table>
         </div>

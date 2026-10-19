@@ -759,6 +759,26 @@ progress { width: 100%; height: 12px; margin-top: 12px; accent-color: var(--gree
 #files-panel { border-color: color-mix(in srgb, #5f997b 28%, var(--line)); border-radius: 15px; }
 #files-panel .file-list-heading { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 #files-panel .file-list-heading h2 { margin-bottom: 0; }
+.file-selection-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 12px 0;
+}
+.file-selection-toolbar .muted { margin-inline-end: auto; }
+.file-selection-toolbar button { min-height: 36px; }
+.file-select-cell { width: 48px; text-align: center; }
+.file-select-cell input { width: 17px; height: 17px; accent-color: var(--green-strong); }
+.file-edit-queue-status {
+  margin: 0 0 14px;
+  padding: 11px 14px;
+  border: 1px solid color-mix(in srgb, #5f997b 32%, var(--line));
+  border-radius: 11px;
+  color: var(--green-strong);
+  background: var(--green-soft);
+  line-height: 1.7;
+}
 table { width: 100%; border-collapse: collapse; text-align: start; }
 th, td { padding: 11px 9px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 tbody tr:last-child td { border-bottom: 0; }
@@ -971,6 +991,8 @@ body.dark .auth-card input:not([type="checkbox"]):not([type="file"]) { border-co
   tbody tr:not(.file-category-heading) .file-category-value { display: none; }
   .file-category-summary { min-height: 42px; padding: 8px 11px; }
   body.dark tbody tr.file-category-heading { background: transparent; box-shadow: none; }
+  td.file-select-cell { justify-content: flex-start; padding-block: 3px 8px; }
+  td.file-select-cell::before { display: none; }
   td {
     display: flex;
     align-items: center;
@@ -986,6 +1008,9 @@ body.dark .auth-card input:not([type="checkbox"]):not([type="file"]) { border-co
   td.table-actions::before { margin-inline-end: auto; }
   .table-actions .small-button { min-height: 42px; flex: 0 0 auto; }
   #file-count { margin-top: 2px; }
+  .file-selection-toolbar { align-items: stretch; gap: 9px; }
+  .file-selection-toolbar .muted { flex: 1 1 100%; }
+  .file-selection-toolbar button { flex: 1 1 100%; }
   .form-actions { flex-wrap: wrap; }
   .form-actions .primary-button, .form-actions .secondary-button { flex: 1 1 auto; }
   .admin-toast {

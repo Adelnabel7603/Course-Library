@@ -41,6 +41,10 @@ const notificationUploadStatus = document.querySelector("#notification-upload-st
 const fileSearch = document.querySelector("#file-search");
 const fileTableBody = document.querySelector("#file-table-body");
 const fileCount = document.querySelector("#file-count");
+const fileSelectVisible = document.querySelector("#file-select-visible");
+const fileSelectionCount = document.querySelector("#file-selection-count");
+const editSelectedFiles = document.querySelector("#edit-selected-files");
+const fileEditQueueStatus = document.querySelector("#file-edit-queue-status");
 const adminThemeButton = document.querySelector("#admin-theme-button");
 const overviewCategoryCount = document.querySelector("#overview-category-count");
 const overviewFileCount = document.querySelector("#overview-file-count");
@@ -83,6 +87,9 @@ let toastTimeout;
 let tusClientPromise;
 let fileUploadBatch = null;
 let isUploadBatchRunning = false;
+let selectedFileIds = new Set();
+let fileEditQueue = null;
+let fileEditQueueIndex = -1;
 let uploadBatchAbortController = null;
 let notificationPreviewUrl;
 let editingNotification = null;
@@ -1210,6 +1217,7 @@ function renderFiles() {
   );
   fileCount.textContent = `${visibleFiles.length} من ${files.length} ملف`;
   renderOverview();
+  updateFileSelectionControls(visibleFiles);
   const visibleGroups = new Map();
   for (const file of visibleFiles) {
     const categoryId = file.category_id || "__uncategorized";
@@ -1226,7 +1234,7 @@ function renderFiles() {
       const heading = document.createElement("tr");
       heading.className = "file-category-heading";
       const headingCell = document.createElement("td");
-      headingCell.colSpan = 6;
+      headingCell.colSpan = 7;
       const summary = document.createElement("div");
       summary.className = "file-category-summary";
       const name = document.createElement("strong");
@@ -1241,6 +1249,20 @@ function renderFiles() {
       previousCategoryId = categoryId;
     }
     const row = document.createElement("tr");
+    const selectionCell = document.createElement("td");
+    selectionCell.className = "file-select-cell";
+    const selection = document.createElement("input");
+    selection.type = "checkbox";
+    selection.checked = selectedFileIds.has(file.id);
+    selection.disabled = Boolean(fileEditQueue);
+    selection.setAttribute("aria-label", `تحديد ${file.name} للتعديل`);
+    selection.addEventListener("change", () => {
+      if (selection.checked) selectedFileIds.add(file.id);
+      else selectedFileIds.delete(file.id);
+      updateFileSelectionControls(visibleFiles);
+    });
+    selectionCell.append(selection);
+    row.append(selectionCell);
     const cells = [
       ["الملف", file.name],
       ["التصنيف", file.categories
@@ -1262,6 +1284,7 @@ function renderFiles() {
     const edit = document.createElement("button");
     edit.className = "secondary-button small-button";
     edit.textContent = "تعديل";
+    edit.disabled = Boolean(fileEditQueue);
     edit.addEventListener("click", () => editFile(file));
     const toggle = document.createElement("button");
     toggle.className = "secondary-button small-button";
@@ -1346,6 +1369,84 @@ function renderFiles() {
     renderedRows.push(row);
   });
   fileTableBody.replaceChildren(...renderedRows);
+}
+
+function updateFileSelectionControls(visibleFiles = []) {
+  const visibleSelectedCount = visibleFiles
+    .filter((file) => selectedFileIds.has(file.id)).length;
+  fileSelectVisible.checked = visibleFiles.length > 0 &&
+    visibleSelectedCount === visibleFiles.length;
+  fileSelectVisible.indeterminate = visibleSelectedCount > 0 &&
+    visibleSelectedCount < visibleFiles.length;
+  fileSelectVisible.disabled = Boolean(fileEditQueue) || visibleFiles.length === 0;
+  fileSelectionCount.textContent = selectedFileIds.size
+    ? `تم تحديد ${selectedFileIds.size} ملف`
+    : "لم يتم تحديد ملفات";
+  editSelectedFiles.disabled = Boolean(fileEditQueue) || selectedFileIds.size === 0 ||
+    Boolean(fileUploadBatch?.running) || isUploadBatchRunning;
+  editSelectedFiles.textContent = fileEditQueue
+    ? "التعديل المتتابع جارٍ"
+    : "تعديل المحدد";
+}
+
+function startSelectedFileEdit() {
+  if (fileEditQueue || selectedFileIds.size === 0) return;
+  if (fileUploadBatch?.running || isUploadBatchRunning) {
+    notify("انتظر انتهاء رفع الملفات قبل بدء التعديل المتتابع.", true);
+    return;
+  }
+  const orderedFiles = [...files].sort((a, b) =>
+    a.position - b.position || new Date(b.created_at) - new Date(a.created_at),
+  );
+  fileEditQueue = orderedFiles
+    .filter((file) => selectedFileIds.has(file.id))
+    .map((file) => file.id);
+  if (!fileEditQueue.length) {
+    selectedFileIds.clear();
+    updateFileSelectionControls();
+    notify("لم تعد الملفات المحددة متاحة.", true);
+    return;
+  }
+  fileEditQueueIndex = 0;
+  renderFiles();
+  showFileEditQueueItem();
+}
+
+function showFileEditQueueItem() {
+  const fileId = fileEditQueue?.[fileEditQueueIndex];
+  const file = files.find((item) => item.id === fileId);
+  if (!file) return;
+  fileEditQueueStatus.hidden = false;
+  fileEditQueueStatus.textContent =
+    `تعديل الملف ${fileEditQueueIndex + 1} من ${fileEditQueue.length}: ${file.name}. احفظه للانتقال إلى الملف التالي.`;
+  editFile(file);
+}
+
+function advanceFileEditQueue(savedFileId, isLocalPreview = false) {
+  if (!fileEditQueue || fileEditQueue[fileEditQueueIndex] !== savedFileId) return false;
+  const savedFile = files.find((item) => item.id === savedFileId);
+  fileEditQueueIndex += 1;
+  while (fileEditQueueIndex < fileEditQueue.length &&
+    !files.some((item) => item.id === fileEditQueue[fileEditQueueIndex])) {
+    fileEditQueueIndex += 1;
+  }
+  if (fileEditQueueIndex < fileEditQueue.length) {
+    showFileEditQueueItem();
+    notify(isLocalPreview
+      ? `تم حفظ «${savedFile?.name || "الملف"}» في المعاينة المحلية. يمكنك الآن تعديل الملف التالي.`
+      : `تم حفظ «${savedFile?.name || "الملف"}». يمكنك الآن تعديل الملف التالي.`);
+    return true;
+  }
+  fileEditQueue = null;
+  fileEditQueueIndex = -1;
+  selectedFileIds.clear();
+  fileEditQueueStatus.hidden = true;
+  updateFileSelectionControls();
+  renderFiles();
+  notify(isLocalPreview
+    ? "تم حفظ بيانات جميع الملفات المحددة في المعاينة المحلية فقط."
+    : "تم حفظ جميع الملفات المحددة.");
+  return true;
 }
 
 async function moveFile(file, direction) {
@@ -1966,6 +2067,9 @@ function editFile(file) {
   fileForm.elements.is_published.checked = file.is_published;
   renderCategoryOptions(file.category_id);
   document.querySelector("#file-form-heading").textContent = "تعديل الملف";
+  document.querySelector("#cancel-edit").textContent = fileEditQueue
+    ? "إنهاء التعديل المتتابع"
+    : "إلغاء التعديل";
   document.querySelector("#cancel-edit").hidden = false;
   fileForm.scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -1993,7 +2097,34 @@ function resetFileForm() {
   updateFileSelection();
 }
 
-document.querySelector("#cancel-edit").addEventListener("click", resetFileForm);
+document.querySelector("#cancel-edit").addEventListener("click", () => {
+  if (fileEditQueue) {
+    if (!window.confirm("إنهاء التعديل المتتابع؟ ستبقى التغييرات غير المحفوظة في هذا الملف دون حفظ.")) {
+      return;
+    }
+    fileEditQueue = null;
+    fileEditQueueIndex = -1;
+    fileEditQueueStatus.hidden = true;
+    updateFileSelectionControls();
+  }
+  resetFileForm();
+  renderFiles();
+});
+fileSelectVisible.addEventListener("change", () => {
+  const query = fileSearch.value.trim().toLocaleLowerCase();
+  const visibleFiles = files.filter((file) =>
+    `${file.name} ${file.description} ${fileCategoryLabel(file)}`
+      .toLocaleLowerCase()
+      .includes(query),
+  );
+  for (const file of visibleFiles) {
+    if (fileSelectVisible.checked) selectedFileIds.add(file.id);
+    else selectedFileIds.delete(file.id);
+  }
+  updateFileSelectionControls(visibleFiles);
+  renderFiles();
+});
+editSelectedFiles.addEventListener("click", startSelectedFileEdit);
 uploadInput.addEventListener("change", updateFileSelection);
 cancelCurrentUploads.addEventListener("click", () => uploadBatchAbortController?.abort());
 coverInput.addEventListener("change", () => {
@@ -2004,7 +2135,9 @@ fileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (isUploadBatchRunning) return;
   const submit = fileForm.querySelector('[type="submit"]');
+  const cancelEdit = document.querySelector("#cancel-edit");
   submit.disabled = true;
+  cancelEdit.disabled = true;
   const values = new FormData(fileForm);
   const id = values.get("id");
   const existing = files.find((file) => file.id === id);
@@ -2052,6 +2185,7 @@ fileForm.addEventListener("submit", async (event) => {
       localStorage.setItem("course-library-feature-preview-files", JSON.stringify(files));
       resetFileForm();
       await loadData();
+      if (advanceFileEditQueue(existing.id, true)) return;
       notify("تم تعديل بيانات الملف في المعاينة المحلية فقط.");
       return;
     }
@@ -2285,6 +2419,11 @@ fileForm.addEventListener("submit", async (event) => {
     }
     resetFileForm();
     await loadData();
+    if (existing && advanceFileEditQueue(existing.id)) {
+      const warning = [cleanupWarning, notificationWarning].filter(Boolean).join(" ");
+      if (warning) notify(warning, true);
+      return;
+    }
     const successMessage = existing
       ? "تم تحديث الملف."
       : newFiles.length === 1
@@ -2314,6 +2453,7 @@ fileForm.addEventListener("submit", async (event) => {
       uploadFileStatuses.replaceChildren();
     }
     submit.disabled = false;
+    cancelEdit.disabled = false;
   }
 });
 
