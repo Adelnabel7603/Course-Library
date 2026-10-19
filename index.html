@@ -270,7 +270,6 @@
         <button class="secondary-button library-retry" id="library-retry" type="button" hidden>إعادة المحاولة</button>
         <div class="term-content" id="term-content" hidden>
           <nav class="library-breadcrumbs" id="library-breadcrumbs" aria-label="مسار التصفح"></nav>
-          <div class="category-cards" id="category-cards"></div>
           <section class="controls" aria-label="البحث والتصنيف">
             <div class="category-filter-rail">
               <button
@@ -304,10 +303,11 @@
                 type="search"
                 autocomplete="off"
                 data-placeholder="searchPlaceholder"
-                placeholder="ابحث باسم الملف..."
+                placeholder="ابحث باسم المادة أو الملف..."
               />
             </label>
           </section>
+          <div class="category-cards" id="category-cards"></div>
         <div class="section-heading">
           <h2 id="library-heading" data-text="filesHeading">الملفات</h2>
           <span id="result-count" aria-live="polite"></span>

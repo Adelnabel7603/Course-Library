@@ -16,6 +16,12 @@ const toast = document.querySelector("#admin-toast");
 const categoryForm = document.querySelector("#category-form");
 const categoryList = document.querySelector("#category-list");
 const categoryCount = document.querySelector("#category-count");
+const categoryPreviewCard = document.querySelector("#category-preview-card");
+const categoryPreviewIcon = document.querySelector("#category-preview-icon");
+const categoryPreviewName = document.querySelector("#category-preview-name");
+const categoryPreviewDescription = document.querySelector("#category-preview-description");
+const categoryPreviewCount = document.querySelector("#category-preview-count");
+const categoryPreviewStatus = document.querySelector("#category-preview-status");
 const semesterAdminList = document.querySelector("#semester-admin-list");
 const semesterManagementNote = document.querySelector("#semester-management-note");
 const cancelCategoryEdit = document.querySelector("#cancel-category-edit");
@@ -803,6 +809,7 @@ function renderCategories() {
       return row;
     }),
   );
+  renderCategoryCardPreview();
 }
 
 function countCategoryFiles(categoryId) {
@@ -820,6 +827,74 @@ function countCategoryFiles(categoryId) {
   return new Set(files.filter((file) => file.is_published && descendants.has(file.category_id))
     .map((file) => file.id)).size;
 }
+
+function renderCategoryCardPreview() {
+  const name = categoryForm.elements.name_ar.value.trim() || "اسم التصنيف";
+  const description = categoryForm.elements.description.value.trim();
+  const iconValue = categoryForm.elements.icon.value.trim() || "📁";
+  const status = categoryForm.elements.category_status.value;
+  const editingCategoryId = categoryForm.elements.id.value;
+  const fileCount = editingCategoryId ? countCategoryFiles(editingCategoryId) : 0;
+
+  categoryPreviewName.textContent = name;
+  categoryPreviewDescription.textContent = description;
+  categoryPreviewDescription.hidden = !description;
+  categoryPreviewCount.textContent = `${fileCount} ملف`;
+  categoryPreviewStatus.textContent = status === "coming_soon"
+    ? "قريبًا"
+    : status === "hidden" ? "مخفي" : "متاح الآن";
+  categoryPreviewCard.classList.toggle("is-coming-soon", status === "coming_soon");
+  categoryPreviewCard.classList.toggle("is-hidden", status === "hidden");
+  categoryPreviewIcon.replaceChildren();
+  categoryPreviewIcon.classList.remove("has-custom-icon");
+
+  if (iconValue && !["📁", "folder", "default"].includes(iconValue.toLowerCase())) {
+    categoryPreviewIcon.textContent = iconValue;
+    categoryPreviewIcon.classList.add("has-custom-icon");
+    delete categoryPreviewIcon.dataset.theme;
+    return;
+  }
+
+  const searchableName = `${categoryForm.elements.name_ar.value} ${categoryForm.elements.name_en.value}`.toLowerCase();
+  const iconThemes = [
+    ["exam", /امتحان|اختبار|exam|test|quiz/],
+    ["lecture", /محاضر|lecture|lesson/],
+    ["section", /سكشن|section|tutorial/],
+    ["tax", /ضرائب|ضريبة|tax/],
+    ["finance", /مالية|اقتصاد|مال|finance|financial|econom/],
+    ["calculator", /محاسب|تكلفة|تكاليف|حساب|account|cost|calcul/],
+    ["business", /منشآت|اعمال|business|enterprise/],
+    ["library", /مكتبة|سنتر|سناتر|مركز|كتاب|library|center|centre|book/],
+    ["document", /ملخص|مذكرة|ورق|مراجعة|document|summary|note|review/],
+  ];
+  const theme = iconThemes.find(([, pattern]) => pattern.test(searchableName))?.[0] || "folder";
+  const iconPaths = {
+    exam: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5h6M8.5 11l1.8 1.8 4-4M8.5 17h7"/>',
+    lecture: '<rect x="3.5" y="4.5" width="17" height="12" rx="2"/><path d="m10 9 5 2-5 2zM8 20h8m-4-3.5V20"/>',
+    section: '<circle cx="9" cy="8" r="3"/><path d="M3.5 19v-1.5a5.5 5.5 0 0 1 11 0V19zM16 5.5a3 3 0 0 1 0 5.8m1.5 2.2a4.5 4.5 0 0 1 3 4.2V19"/>',
+    tax: '<path d="M6 3.5h8l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20z"/><path d="M14 3.5V8h4M9 12h6m-6 4h2m2 0h2"/>',
+    finance: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5c-.7-.7-1.7-1-3-1-1.8 0-3 .9-3 2.2 0 3.2 6 1.3 6 4.4 0 1.3-1.2 2.3-3.2 2.3-1.5 0-2.7-.5-3.5-1.3M12 5.5v13"/>',
+    calculator: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8v3H8zM8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01M16 17h.01"/>',
+    business: '<path d="M3 21h18M5 21V6l7-3 7 3v15M9 9h.01M15 9h.01M9 13h.01M15 13h.01M10 21v-4h4v4"/>',
+    library: '<path d="M4 19.5V5.8a2 2 0 0 1 2-2h13v15.7H6a2 2 0 0 0-2 2zm0 0a2 2 0 0 1 2-2h13"/><path d="M8 7h7M8 10h7"/>',
+    document: '<path d="M6 3.5h8l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20z"/><path d="M14 3.5V8h4M9 12h6m-6 4h6"/>',
+    folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 10h18"/>',
+  };
+  categoryPreviewIcon.dataset.theme = theme;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.7");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML = iconPaths[theme];
+  categoryPreviewIcon.append(svg);
+}
+
+categoryForm.addEventListener("input", renderCategoryCardPreview);
+categoryForm.addEventListener("change", renderCategoryCardPreview);
 
 function renderSemesters() {
   semesterAdminList.replaceChildren(...[...semesters]
@@ -1864,6 +1939,7 @@ function editCategory(category) {
   renderParentCategoryOptions();
   categoryForm.elements.parent_id.value = category.parent_id || "";
   categoryForm.elements.semester_id.value = getRootCategory(category)?.semester_id || "";
+  renderCategoryCardPreview();
   categoryForm.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
@@ -1872,6 +1948,7 @@ function resetCategoryForm() {
   document.querySelector(".category-submit").textContent = "＋ إضافة التصنيف";
   cancelCategoryEdit.hidden = true;
   renderParentCategoryOptions();
+  renderCategoryCardPreview();
 }
 
 cancelCategoryEdit.addEventListener("click", () => {

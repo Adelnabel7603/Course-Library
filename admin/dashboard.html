@@ -178,6 +178,19 @@
             </button>
             <button class="secondary-button category-cancel-edit" id="cancel-category-edit" type="button" hidden>إلغاء التعديل</button>
           </div>
+          <section class="category-card-preview" aria-labelledby="category-preview-heading">
+            <div class="category-card-preview-heading">
+              <h4 id="category-preview-heading">معاينة بطاقة المكتبة</h4>
+              <span id="category-preview-status">متاح الآن</span>
+            </div>
+            <div class="category-card-preview-card" id="category-preview-card" role="group" aria-labelledby="category-preview-heading">
+              <span class="category-card-preview-icon" id="category-preview-icon" aria-hidden="true">📁</span>
+              <strong id="category-preview-name">اسم التصنيف</strong>
+              <span class="category-card-preview-description" id="category-preview-description" hidden></span>
+              <span class="category-card-preview-count" id="category-preview-count">0 ملف</span>
+              <span class="category-card-preview-arrow" aria-hidden="true">←</span>
+            </div>
+          </section>
         </form>
         <div id="category-list" class="category-admin-list"></div>
       </section>

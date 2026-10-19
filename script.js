@@ -104,7 +104,10 @@ const translations = {
     scrollCategoriesRight: "تمرير التصنيفات إلى اليمين",
     installIOS: "اضغط «مشاركة» في Safari، ثم اختر «إضافة إلى الشاشة الرئيسية».",
     all: "الكل",
-    searchPlaceholder: "ابحث باسم الملف...",
+    searchPlaceholder: "ابحث عن مادة أو ملف...",
+    selectCategoryPrompt: "اختر بطاقة مادة لعرض ملفاتها.",
+    noMatchingCategories: "لا توجد مواد أو ملفات مطابقة للبحث.",
+    noCategoryFiles: "لا توجد ملفات في هذا التصنيف حاليًا.",
     filesHeading: "الملفات",
     count: (count) => `${count} ملف`,
     open: "فتح",
@@ -224,7 +227,10 @@ const translations = {
     scrollCategoriesRight: "Scroll categories right",
     installIOS: "In Safari, tap Share, then choose “Add to Home Screen”.",
     all: "All",
-    searchPlaceholder: "Search files...",
+    searchPlaceholder: "Search courses or files...",
+    selectCategoryPrompt: "Select a course card to view its files.",
+    noMatchingCategories: "No courses or files match your search.",
+    noCategoryFiles: "There are no files in this category yet.",
     filesHeading: "Files",
     count: (count) => `${count} files`,
     open: "Open",
@@ -1162,9 +1168,23 @@ function renderSemesters() {
 function renderCategoryBrowser() {
   const inSemester = categoriesForSemester(activeSemester?.id);
   const current = categories.find((category) => category.id === activeCategory);
+  const query = normalizeSearch(searchInput.value);
   const parentIds = current ? [current.id] : [null];
   const children = inSemester.filter((category) =>
     parentIds.includes(category.parent_id || null))
+    .filter((category) => {
+      if (!query || normalizeSearch(
+        `${category.name_ar} ${category.name_en || ""} ${category.description || ""}`,
+      ).includes(query)) return true;
+      const categoryIds = getCategoryTreeIds(category.id);
+      return availableFiles.some((file) => categoryIds.has(file.category_id) &&
+        normalizeSearch(
+          `${file.name} ${file.description || ""} ${getCategoryLabel(file.categories || {
+            name_ar: file.category,
+            name_en: file.categoryNameEn,
+          })}`,
+        ).includes(query));
+    })
     .sort((first, second) => first.position - second.position);
 
   const crumbs = [];
@@ -1220,7 +1240,6 @@ function renderCategoryBrowser() {
     if (!comingSoon) {
       card.addEventListener("click", () => {
         activeCategory = category.id;
-        searchInput.value = "";
         renderCategoryBrowser();
         renderFiles();
       });
@@ -1317,7 +1336,8 @@ function renderCategories() {
     } else {
       button.addEventListener("click", () => {
         activeCategory = key;
-        renderCategories();
+        if (activeSemester) renderCategoryBrowser();
+        else renderCategories();
         renderFiles();
       });
     }
@@ -1360,7 +1380,8 @@ function renderCategories() {
   allButton.setAttribute("aria-pressed", String(activeCategory === "all"));
   allButton.addEventListener("click", () => {
     activeCategory = "all";
-    renderCategories();
+    if (activeSemester) renderCategoryBrowser();
+    else renderCategories();
     renderFiles();
   });
   const roots = byParent.get("") || [];
@@ -1448,12 +1469,14 @@ function fileUrl(fileName) {
 function renderFiles() {
   const text = currentText();
   const query = normalizeSearch(searchInput.value);
+  const isSelectingCategory = Boolean(activeSemester) && activeCategory === "all";
   const visibleCategoryIds = activeCategory !== "all"
     ? getCategoryTreeIds(activeCategory)
     : activeSemester
       ? new Set(categoriesForSemester(activeSemester.id).map((category) => category.id))
       : null;
   const visibleFiles = availableFiles.filter((file) => {
+    if (isSelectingCategory) return false;
     const matchesCategory = !visibleCategoryIds ||
       visibleCategoryIds.has(file.category_id);
     const categoryName = cloudLibraryEnabled
@@ -1668,9 +1691,13 @@ function renderFiles() {
   totalCount.textContent = String(availableFiles.length);
   resultCount.textContent = text.count(visibleFiles.length);
   footerCount.textContent = text.count(availableFiles.length);
-  emptyState.textContent = !query && activeCategory !== "all"
-    ? "لا توجد ملفات في هذا التصنيف حاليًا."
-    : text.empty;
+  emptyState.textContent = isSelectingCategory
+    ? query && !categoryCards.childElementCount
+      ? text.noMatchingCategories
+      : text.selectCategoryPrompt
+    : !query && activeCategory !== "all"
+      ? text.noCategoryFiles
+      : text.empty;
   emptyState.hidden = visibleFiles.length > 0;
   fileGrid.hidden = visibleFiles.length === 0;
   renderPersonalSections();
@@ -2039,7 +2066,10 @@ if ("IntersectionObserver" in window) {
 }
 
 window.addEventListener("resize", () => setActiveNavigation(activeNavigationSection));
-searchInput.addEventListener("input", renderFiles);
+searchInput.addEventListener("input", () => {
+  if (activeSemester) renderCategoryBrowser();
+  renderFiles();
+});
 pdfViewerFrame.addEventListener("load", () => { pdfViewerLoading.hidden = true; });
 pdfViewerClose.addEventListener("click", () => pdfViewer.close());
 pdfViewer.addEventListener("click", (event) => {
