@@ -14,13 +14,29 @@
 
 * { box-sizing: border-box; }
 body {
+  position: relative;
+  isolation: isolate;
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
   color: var(--ink);
   background-color: var(--paper);
-  background-image: radial-gradient(#dce4dc 0.7px, transparent 0.7px);
-  background-size: 18px 18px;
+  background-image:
+    radial-gradient(#dce4dc 0.7px, transparent 0.7px),
+    radial-gradient(ellipse at 12% 5%, rgb(213 185 103 / 16%), transparent 32%),
+    radial-gradient(ellipse at 90% 30%, rgb(36 102 83 / 10%), transparent 38%);
+  background-position: 0 0, 0 0, 100% 0;
+  background-size: 18px 18px, 100% 720px, 100% 860px;
+}
+body::before {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 4% 75%, rgb(213 185 103 / 8%), transparent 28%),
+    radial-gradient(ellipse at 94% 94%, rgb(33 91 72 / 8%), transparent 34%);
+  content: "";
+  pointer-events: none;
 }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
@@ -32,7 +48,11 @@ button { cursor: pointer; }
   border: 1px solid rgb(255 255 255 / 25%);
   border-radius: 12px;
   color: #d5b967;
+  box-shadow: inset 0 1px rgb(255 255 255 / 20%), 0 8px 18px rgb(0 0 0 / 15%);
+  transform: perspective(160px) rotateY(-8deg);
+  transition: transform 220ms ease, box-shadow 220ms ease;
 }
+.admin-brand:hover .brand-mark { box-shadow: inset 0 1px rgb(255 255 255 / 25%), 0 12px 24px rgb(0 0 0 / 20%); transform: perspective(160px) rotateY(0) translateY(-2px); }
 .dashboard-header {
   position: relative;
   overflow: hidden;
@@ -74,13 +94,19 @@ h2 { margin-bottom: 5px; font-size: 1.1rem; }
 .eyebrow { margin-bottom: 4px; color: #527d6f; font-size: .85rem; }
 .muted { color: var(--muted); font-size: .9rem; }
 .panel {
+  position: relative;
+  overflow: hidden;
   margin-block: 16px;
   padding: 23px;
   border: 1px solid var(--line);
   border-radius: 18px;
-  background: var(--surface);
-  box-shadow: 0 14px 34px rgb(24 50 42 / 6%);
+  background: color-mix(in srgb, var(--surface) 91%, transparent);
+  box-shadow: 0 16px 38px rgb(24 50 42 / 7%), inset 0 1px rgb(255 255 255 / 62%);
+  backdrop-filter: blur(16px);
+  transform: perspective(1400px) translateZ(0);
+  transition: border-color 200ms ease, box-shadow 220ms ease, transform 220ms ease;
 }
+.dashboard-content > .panel:hover { border-color: color-mix(in srgb, var(--green-strong) 22%, var(--line)); box-shadow: 0 21px 44px rgb(24 50 42 / 10%), inset 0 1px rgb(255 255 255 / 70%); transform: perspective(1400px) translateY(-2px) rotateX(.12deg); }
 .panel-heading { margin-bottom: 17px; }
 .panel-heading p { margin-bottom: 0; }
 .inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -119,7 +145,7 @@ input:focus, textarea:focus, select:focus {
 .secondary-button:hover { border-color: #bfd1c5; background: var(--green-soft); }
 .danger-button { border-color: #efd4d0; color: #963b33; background: #fff8f7; }
 .danger-button:hover { border-color: #e6b7b0; background: #fff0ed; }
-.primary-button:hover, .secondary-button:hover, .danger-button:hover { transform: translateY(-1px); }
+.primary-button:hover, .secondary-button:hover, .danger-button:hover { transform: perspective(500px) translateY(-2px) rotateX(2deg); }
 button:disabled { cursor: wait; opacity: .6; }
 .small-button { min-height: 35px; padding: 5px 10px; font-size: .8rem; }
 .order-button { min-width: 36px; padding-inline: 6px; font-size: 1rem; font-weight: 800; }
@@ -474,8 +500,14 @@ progress { width: 100%; height: 12px; margin-top: 12px; accent-color: var(--gree
   padding: 11px 13px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--surface);
+  background:
+    radial-gradient(ellipse at 100% 0, rgb(213 185 103 / 11%), transparent 52%),
+    color-mix(in srgb, var(--surface) 91%, transparent);
+  box-shadow: 0 10px 25px rgb(24 50 42 / 6%), inset 0 1px rgb(255 255 255 / 72%);
+  backdrop-filter: blur(14px);
+  transition: transform 200ms ease, box-shadow 200ms ease;
 }
+.admin-overview article:hover { box-shadow: 0 16px 30px rgb(24 50 42 / 10%), inset 0 1px rgb(255 255 255 / 78%); transform: perspective(500px) translateY(-3px) rotateX(1deg); }
 .calendar-admin-event-details { display: grid; min-width: 0; gap: 3px; }
 .calendar-admin-event-details strong { overflow-wrap: anywhere; }
 .calendar-admin-event-details small { color: var(--muted); line-height: 1.6; }
@@ -526,14 +558,29 @@ td { font-size: .88rem; }
 .table-actions { display: flex; flex-wrap: wrap; gap: 5px; }
 .notice, .form-message { padding: 11px 13px; border-radius: 8px; color: #843c25; background: #fff0e7; }
 .auth-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   width: min(430px, calc(100% - 32px));
   margin: min(12vh, 110px) auto;
-  padding: 26px;
-  border: 1px solid var(--line);
-  border-radius: 15px;
-  background: var(--surface);
-  box-shadow: 0 18px 48px rgb(24 50 42 / 9%);
+  padding: clamp(24px, 5vw, 36px);
+  border: 1px solid color-mix(in srgb, var(--green-strong) 18%, var(--line));
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--surface) 83%, transparent);
+  box-shadow: 0 28px 72px rgb(24 50 42 / 14%), inset 0 1px rgb(255 255 255 / 85%);
+  backdrop-filter: blur(22px) saturate(125%);
+  animation: admin-card-enter 620ms cubic-bezier(.2, .8, .2, 1) both;
+  transform: perspective(1100px) rotateX(1.2deg);
 }
+.auth-card::before { position: absolute; z-index: -1; top: -100px; inset-inline-end: -110px; width: 240px; height: 240px; border: 1px solid rgb(213 185 103 / 33%); border-radius: 50%; box-shadow: 0 0 0 22px rgb(213 185 103 / 5%), 0 0 0 48px rgb(213 185 103 / 3%); content: ""; pointer-events: none; }
+.auth-card::after { position: absolute; z-index: -1; inset-inline-start: -58px; bottom: -92px; width: 170px; height: 170px; border-radius: 50%; background: radial-gradient(circle, rgb(36 102 83 / 13%), transparent 70%); content: ""; pointer-events: none; }
+.auth-card > * { position: relative; }
+.auth-card form { position: relative; }
+.auth-card .brand-mark { width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(145deg, #246653, #153f38); box-shadow: 0 12px 24px rgb(21 63 56 / 24%), inset 0 1px rgb(255 255 255 / 25%); }
+.auth-card input:not([type="checkbox"]):not([type="file"]) { background: color-mix(in srgb, var(--surface) 82%, var(--green-soft)); }
+.auth-card .primary-button { min-height: 46px; box-shadow: 0 10px 20px rgb(21 63 56 / 19%), inset 0 1px rgb(255 255 255 / 18%); }
+.auth-card .primary-button:hover { box-shadow: 0 14px 25px rgb(21 63 56 / 24%), inset 0 1px rgb(255 255 255 / 18%); transform: translateY(-2px); }
+@keyframes admin-card-enter { from { opacity: 0; transform: perspective(1100px) translateY(18px) rotateX(5deg) scale(.985); } to { opacity: 1; transform: perspective(1100px) rotateX(1.2deg) scale(1); } }
 .auth-card .back-link { display: inline-block; margin-bottom: 23px; color: var(--green); text-decoration: none; }
 .auth-card .brand-mark { display: grid; background: var(--green); }
 .auth-card .eyebrow { margin-top: 20px; }
@@ -701,12 +748,24 @@ body.dark {
   --muted: #a1b0a8;
   --line: #35443d;
   --gold: #d5b967;
-  background-image: radial-gradient(#293630 0.7px, transparent 0.7px);
+  background-image:
+    radial-gradient(#293630 0.7px, transparent 0.7px),
+    radial-gradient(ellipse at 12% 5%, rgb(213 185 103 / 9%), transparent 32%),
+    radial-gradient(ellipse at 90% 30%, rgb(54 132 103 / 12%), transparent 38%);
 }
 
 body.dark .dashboard-header {
   background: linear-gradient(118deg, #102e29, #17483f 58%, #22594a);
 }
+body.dark .panel,
+body.dark .auth-card {
+  border-color: color-mix(in srgb, var(--green-strong) 36%, var(--line));
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  box-shadow: 0 18px 46px rgb(0 0 0 / 24%), inset 0 1px rgb(255 255 255 / 5%);
+}
+body.dark .dashboard-content > .panel:hover { box-shadow: 0 23px 50px rgb(0 0 0 / 31%), inset 0 1px rgb(255 255 255 / 7%); }
+body.dark .admin-overview article { background: radial-gradient(ellipse at 100% 0, rgb(213 185 103 / 8%), transparent 52%), color-mix(in srgb, var(--surface) 91%, transparent); box-shadow: 0 10px 25px rgb(0 0 0 / 18%), inset 0 1px rgb(255 255 255 / 5%); }
+body.dark .admin-overview article:hover { box-shadow: 0 16px 32px rgb(0 0 0 / 28%), inset 0 1px rgb(255 255 255 / 7%); }
 
 body.dark .admin-overview article,
 body.dark .dashboard-sidebar,
@@ -716,6 +775,19 @@ body.dark .panel {
 
 body.dark .admin-toast {
   background: linear-gradient(135deg, #21483c, #142f29);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card { animation: none; transform: none; }
+  .dashboard-content > .panel,
+  .admin-overview article,
+  .dashboard-sidebar a,
+  .brand-mark,
+  .primary-button { transition: none; }
+  .dashboard-content > .panel:hover,
+  .admin-overview article:hover,
+  .dashboard-sidebar a:hover,
+  .admin-brand:hover .brand-mark { transform: none; }
 }
 
 .admin-notification-actions {
@@ -763,6 +835,8 @@ body.dark .danger-button:hover {
   border-radius: 10px;
   background: var(--surface);
   box-shadow: 0 8px 24px rgb(25 37 75 / 6%);
+  backdrop-filter: blur(16px);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
 .dashboard-sidebar-arrow {
@@ -786,6 +860,7 @@ body.dark .danger-button:hover {
   color: var(--green-strong);
   background: var(--green-soft);
 }
+.dashboard-sidebar a:hover { transform: translateX(-2px); }
 
 .dashboard-content {
   min-width: 0;
@@ -806,6 +881,8 @@ body.dark .danger-button:hover {
 }
 
 .admin-overview article {
+  position: relative;
+  overflow: hidden;
   display: grid;
   min-width: 0;
   min-height: 92px;

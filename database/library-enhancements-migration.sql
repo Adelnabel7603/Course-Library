@@ -5,7 +5,7 @@ alter table public.notifications
   add column if not exists attachments jsonb not null default '[]'::jsonb;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('library-files', 'library-files', false, 1073741824, null)
+values ('library-files', 'library-files', false, 2147483648, null)
 on conflict (id) do update
   set file_size_limit = excluded.file_size_limit,
       allowed_mime_types = null;

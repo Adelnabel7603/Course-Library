@@ -40,6 +40,11 @@ const overviewCategoryCount = document.querySelector("#overview-category-count")
 const overviewFileCount = document.querySelector("#overview-file-count");
 const overviewNotificationCount = document.querySelector("#overview-notification-count");
 const overviewDownloadCount = document.querySelector("#overview-download-count");
+const overviewUserCount = document.querySelector("#overview-user-count");
+const overviewStorageSize = document.querySelector("#overview-storage-size");
+const overviewDataNote = document.querySelector("#overview-data-note");
+const overviewRecentFiles = document.querySelector("#overview-recent-files");
+const overviewRecentActions = document.querySelector("#overview-recent-actions");
 const homepageSectionList = document.querySelector("#homepage-section-list");
 const homepageSectionNote = document.querySelector("#homepage-section-note");
 const uploadInput = document.querySelector("#file-input");
@@ -58,6 +63,8 @@ let categories = [];
 let semesters = [];
 let files = [];
 let notifications = [];
+let recentAdminActions = null;
+let optionalOverviewWarnings = [];
 const defaultHomepageSections = [
   { id: "personal", position: 0, is_visible: true },
   { id: "discovery", position: 1, is_visible: true },
@@ -81,7 +88,7 @@ const previewSemesters = [
   { id: "local-semester-2", name: "الترم الثاني", description: "", icon: "🎓", display_text: "قريبًا", status: "coming_soon", subject_count: 0, position: 1 },
 ];
 
-const maxFileSize = 1024 ** 3;
+const maxFileSize = 2 * 1024 ** 3;
 const maxCoverSize = 50 * 1024 ** 2;
 const maxNotificationImageSize = 10 * 1024 ** 2;
 const resumableUploadThreshold = 6 * 1024 ** 2;
@@ -195,6 +202,7 @@ function setAdminTheme(enabled) {
 
 function formatFileSize(bytes) {
   if (bytes < 1024 ** 2) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (bytes >= 1024 ** 3) return `${(bytes / (1024 ** 3)).toFixed(2)} GB`;
   return `${(bytes / (1024 ** 2)).toFixed(1)} MB`;
 }
 
@@ -433,6 +441,67 @@ function renderOverview() {
     (total, file) => total + (Number(file.downloads) || 0),
     0,
   ));
+  overviewUserCount.textContent = "غير متاح";
+  overviewStorageSize.textContent = formatFileSize(files.reduce(
+    (total, file) => total + (Number(file.size_bytes) || 0),
+    0,
+  ));
+  overviewDataNote.hidden = optionalOverviewWarnings.length === 0;
+  overviewDataNote.textContent = optionalOverviewWarnings.join(" ");
+
+  const recentFiles = [...files]
+    .sort((first, second) =>
+      new Date(second.updated_at || second.created_at) -
+      new Date(first.updated_at || first.created_at),
+    )
+    .slice(0, 5);
+  overviewRecentFiles.replaceChildren(...(recentFiles.length
+    ? recentFiles.map((file) => {
+        const item = document.createElement("li");
+        const name = document.createElement("strong");
+        name.textContent = file.name;
+        const date = document.createElement("time");
+        const changedAt = file.updated_at || file.created_at;
+        date.dateTime = changedAt;
+        date.textContent = `آخر تحديث: ${new Date(changedAt).toLocaleString("ar")}`;
+        item.append(name, date);
+        return item;
+      })
+    : [createOverviewEmptyState("لا توجد ملفات مسجلة بعد.")]));
+
+  overviewRecentActions.replaceChildren(...(recentAdminActions?.length
+    ? recentAdminActions.map((action) => {
+        const actionLabels = { INSERT: "إضافة", UPDATE: "تعديل", DELETE: "حذف" };
+        const targetLabels = {
+          categories: "تصنيف",
+          files: "ملف",
+          notifications: "إشعار",
+          semesters: "فصل دراسي",
+        };
+        const item = document.createElement("li");
+        const label = document.createElement("strong");
+        label.textContent = `${actionLabels[action.action] || action.action} ${targetLabels[action.target_type] || action.target_type}`;
+        const date = document.createElement("time");
+        date.dateTime = action.created_at;
+        const actor = action.admin_id
+          ? `مسؤول ${action.admin_id.slice(0, 8)}`
+          : "مسؤول سابق";
+        date.textContent = `${actor} · ${new Date(action.created_at).toLocaleString("ar")}`;
+        item.append(label, date);
+        return item;
+      })
+    : [createOverviewEmptyState(
+        recentAdminActions === null
+          ? "السجل غير متاح؛ شغّل database/library-admin-audit-migration.sql."
+          : "لا توجد عمليات إدارية مسجلة.",
+      )]));
+}
+
+function createOverviewEmptyState(text) {
+  const item = document.createElement("li");
+  item.className = "overview-empty-state";
+  item.textContent = text;
+  return item;
 }
 
 function renderHomepageSections() {
@@ -568,6 +637,10 @@ async function loadData() {
       : [];
     const savedNotifications = localStorage.getItem("course-library-feature-preview-notifications");
     notifications = savedNotifications ? JSON.parse(savedNotifications) : [];
+    recentAdminActions = null;
+    optionalOverviewWarnings = [
+      "هذه معاينة محلية وليست بيانات قاعدة البيانات. عدد المستخدمين غير متاح لهذا المشروع.",
+    ];
     const savedSections = localStorage.getItem("course-library-feature-preview-homepage-sections");
     homepageSections = savedSections ? JSON.parse(savedSections) : defaultHomepageSections.map((section) => ({ ...section }));
     homepageSectionSettingsAvailable = true;
@@ -580,17 +653,46 @@ async function loadData() {
     renderHomepageSections();
     return;
   }
-  const [semesterData, categoryData, fileData, notificationData, homepageSectionData] = await Promise.all([
+  const [
+    semesterData,
+    categoryData,
+    fileData,
+    notificationData,
+    homepageSectionData,
+    auditLogData,
+  ] = await Promise.all([
     client.from("semesters").select("*").order("position"),
     client.from("categories").select("*").order("position"),
     client.from("files").select("*, categories(id, name_ar, name_en, parent_id)").order("position").order("created_at", { ascending: false }),
     client.from("notifications").select("*").order("created_at", { ascending: false }).limit(50),
     client.from("homepage_sections").select("id, position, is_visible").order("position"),
+    client.from("library_admin_audit_logs")
+      .select("admin_id, action, target_type, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5),
   ]);
   semesters = assertSuccess(semesterData);
   categories = assertSuccess(categoryData);
   files = assertSuccess(fileData);
   notifications = assertSuccess(notificationData);
+  optionalOverviewWarnings = [
+    "عدد المستخدمين غير متاح؛ قاعدة البيانات الحالية لا توفر واجهة إدارية آمنة لعد حسابات Auth.",
+  ];
+  if (auditLogData.error) {
+    if (["42P01", "PGRST205"].includes(auditLogData.error.code)) {
+      recentAdminActions = null;
+      optionalOverviewWarnings.push(
+        "سجل العمليات يحتاج تطبيق database/library-admin-audit-migration.sql.",
+      );
+    } else {
+      recentAdminActions = null;
+      optionalOverviewWarnings.push(
+        `تعذر جلب سجل العمليات: ${auditLogData.error.message}`,
+      );
+    }
+  } else {
+    recentAdminActions = auditLogData.data;
+  }
   if (homepageSectionData.error) {
     if (!["42P01", "PGRST205"].includes(homepageSectionData.error.code)) {
       throw homepageSectionData.error;
@@ -1802,7 +1904,7 @@ fileForm.addEventListener("submit", async (event) => {
     if (emptyFile) throw new Error(`الملف «${emptyFile.name}» فارغ ولا يمكن رفعه.`);
     const oversizedFile = newFiles.find((file) => file.size > maxFileSize);
     if (oversizedFile) {
-      throw new Error(`حجم «${oversizedFile.name}» أكبر من الحد المسموح (1 GB).`);
+      throw new Error(`حجم «${oversizedFile.name}» أكبر من الحد المحدد (2 GiB). قد يفرض مشروع Supabase حدًا أقل.`);
     }
     if (localFeaturePreview && existing && newFiles.length === 0) {
       const isPublishing = !existing.is_published && values.has("is_published");
@@ -2116,7 +2218,7 @@ notificationForm.addEventListener("submit", async (event) => {
   }
   const oversizedAttachment = selectedAttachments.find((file) => file.size > maxFileSize);
   if (oversizedAttachment) {
-    notify(`حجم «${oversizedAttachment.name}» أكبر من الحد المسموح (1 GB).`, true);
+    notify(`حجم «${oversizedAttachment.name}» أكبر من الحد المحدد (2 GiB). قد يفرض مشروع Supabase حدًا أقل.`, true);
     return;
   }
   submit.disabled = true;

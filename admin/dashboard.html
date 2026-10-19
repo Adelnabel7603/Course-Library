@@ -49,10 +49,25 @@
         </div>
         <div class="dashboard-content">
           <section class="admin-overview" id="dashboard-overview" aria-label="إحصاءات المحتوى">
-            <article><span>مواد نشطة</span><strong id="overview-category-count">0</strong></article>
+            <article><span>تصنيفات نشطة</span><strong id="overview-category-count">0</strong></article>
             <article><span>ملفات منشورة</span><strong id="overview-file-count">0</strong></article>
             <article><span>إشعارات نشطة</span><strong id="overview-notification-count">0</strong></article>
             <article><span>إجمالي التنزيلات</span><strong id="overview-download-count">0</strong></article>
+            <article><span>المستخدمون المسجلون</span><strong id="overview-user-count">غير متاح</strong></article>
+            <article><span>حجم الملفات المسجل</span><strong id="overview-storage-size">0 KB</strong></article>
+          </section>
+          <p class="muted overview-storage-note">المساحة مجموع أحجام الملفات المسجلة في قاعدة البيانات، ولا تمثل كامل مساحة التخزين أو المتبقي في خطة Supabase.</p>
+          <p id="overview-data-note" class="muted overview-data-note" role="status" hidden></p>
+          <section class="overview-details" aria-label="أحدث بيانات المكتبة">
+            <article class="panel overview-detail-panel">
+              <h2>أحدث الملفات</h2>
+              <ul id="overview-recent-files" class="overview-activity-list"></ul>
+            </article>
+            <article class="panel overview-detail-panel">
+              <h2>آخر العمليات الإدارية</h2>
+              <p class="muted">عمليات الملفات والتصنيفات والإشعارات والفصول. السجل للقراءة فقط.</p>
+              <ul id="overview-recent-actions" class="overview-activity-list"></ul>
+            </article>
           </section>
 
           <section class="panel" id="homepage-sections-panel">
@@ -182,7 +197,7 @@
               </span>
               <span class="upload-copy">
                 <strong>اضغط لاختيار الملفات</strong>
-                <small>أي نوع ملف · حتى 1 GB لكل ملف</small>
+                <small>أي نوع ملف · حتى 2 GiB لكل ملف وفق حد مشروع Supabase</small>
               </span>
               <input
                 id="file-input"
@@ -231,7 +246,7 @@
             <span id="notification-image-name"></span>
           </div>
           <div class="upload-field notification-attachments">
-            <span class="upload-label">ملفات مرفقة <small>أي نوع ملف · ملفات متعددة · حتى 1 GB لكل ملف</small></span>
+            <span class="upload-label">ملفات مرفقة <small>أي نوع ملف · ملفات متعددة · حتى 2 GiB لكل ملف وفق حد مشروع Supabase</small></span>
             <input id="notification-attachments" type="file" multiple />
             <ul id="notification-attachment-selection" class="file-selection" aria-live="polite"></ul>
             <ul id="notification-existing-attachments" class="notification-existing-attachments"></ul>

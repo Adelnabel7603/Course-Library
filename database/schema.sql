@@ -165,7 +165,7 @@ values (
   'library-files',
   'library-files',
   false,
-  1073741824,
+  2147483648,
   null
 )
 on conflict (id) do update set public = excluded.public,
