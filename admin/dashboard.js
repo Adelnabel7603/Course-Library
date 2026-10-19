@@ -83,6 +83,7 @@ let editingNotification = null;
 let removeCurrentNotificationImage = false;
 const removedNotificationAttachmentPaths = new Set();
 const uploadDrafts = new Map();
+const firstSemesterId = "8c13f5b1-98bf-47a1-b076-ef58c0a10001";
 const previewSemesters = [
   { id: "local-semester-1", name: "الترم الأول", description: "", icon: "📚", display_text: "", status: "active", subject_count: 6, position: 0 },
   { id: "local-semester-2", name: "الترم الثاني", description: "", icon: "🎓", display_text: "قريبًا", status: "coming_soon", subject_count: 0, position: 1 },
@@ -834,8 +835,12 @@ function renderSemesters() {
       const linked = categories.filter((category) =>
         getRootCategory(category)?.semester_id === semester.id);
       const ids = new Set(linked.map((category) => category.id));
-      total.textContent = `${new Set(files.filter((file) => file.is_published && ids.has(file.category_id))
-        .map((file) => file.id)).size} ملف · ${linked.filter((category) => !category.parent_id).length} تصنيف رئيسي`;
+      const fileCount = new Set(files.filter((file) => file.is_published && ids.has(file.category_id))
+        .map((file) => file.id)).size;
+      const subjectCount = semester.id === firstSemesterId
+        ? 6
+        : semester.subject_count || linked.filter((category) => !category.parent_id).length;
+      total.textContent = `${fileCount} ملف · ${subjectCount} مواد`;
       heading.append(title, total);
       const name = document.createElement("label");
       name.textContent = "الاسم";
@@ -873,6 +878,48 @@ function renderSemesters() {
         statusSelect.add(new Option(label, value, false, semester.status === value));
       }
       statusField.append(statusSelect);
+      const preview = document.createElement("div");
+      preview.className = `semester-card semester-admin-preview${semester.status === "coming_soon" ? " is-coming-soon" : ""}`;
+      preview.setAttribute("role", "img");
+      preview.setAttribute("aria-live", "polite");
+      const previewIcon = document.createElement("span");
+      previewIcon.className = "semester-icon";
+      previewIcon.setAttribute("aria-hidden", "true");
+      const previewContent = document.createElement("span");
+      previewContent.className = "semester-card-content";
+      const previewStatus = document.createElement("span");
+      previewStatus.className = "semester-status";
+      const previewTitle = document.createElement("strong");
+      const previewDescription = document.createElement("span");
+      previewDescription.className = "semester-description";
+      const previewStats = document.createElement("span");
+      previewStats.className = "semester-stats";
+      const previewArrow = document.createElement("span");
+      previewArrow.className = "semester-arrow";
+      previewArrow.setAttribute("aria-hidden", "true");
+      previewArrow.textContent = "←";
+      previewContent.append(previewStatus, previewTitle, previewDescription, previewStats);
+      preview.append(previewIcon, previewContent, previewArrow);
+      const updatePreview = () => {
+        const comingSoon = statusSelect.value === "coming_soon";
+        preview.classList.toggle("is-coming-soon", comingSoon);
+        previewStatus.textContent = statusSelect.value === "hidden"
+          ? "مخفي"
+          : badgeInput.value.trim() || (comingSoon ? "قريبًا" : "متاح الآن");
+        previewTitle.textContent = nameInput.value.trim() || "اسم الترم";
+        previewDescription.textContent = descriptionInput.value.trim();
+        previewIcon.textContent = iconInput.value.trim() || "📚";
+        previewStats.textContent = `${fileCount} ملف · ${subjectCount} مواد`;
+        preview.setAttribute(
+          "aria-label",
+          `${previewTitle.textContent}، ${previewStatus.textContent}، ${previewStats.textContent}`,
+        );
+      };
+      for (const field of [nameInput, descriptionInput, iconInput, badgeInput, statusSelect]) {
+        field.addEventListener("input", updatePreview);
+        field.addEventListener("change", updatePreview);
+      }
+      updatePreview();
       const actions = document.createElement("div");
       actions.className = "semester-admin-actions";
       for (const direction of [-1, 1]) {
@@ -890,7 +937,7 @@ function renderSemesters() {
       save.className = "primary-button";
       save.textContent = "حفظ";
       actions.append(save);
-      form.append(heading, name, description, icon, badge, statusField, actions);
+      form.append(heading, preview, name, description, icon, badge, statusField, actions);
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const values = new FormData(form);

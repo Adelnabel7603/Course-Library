@@ -1328,6 +1328,103 @@ body.dark .homepage-section-row {
   background: var(--surface);
 }
 .semester-admin-row > label { display: grid; gap: 6px; font-size: .84rem; font-weight: 700; }
+.semester-admin-preview {
+  position: relative;
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 18px;
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 190px;
+  padding: 24px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 23px;
+  color: #fff;
+  text-align: start;
+  background: linear-gradient(125deg, #17483f, #256c58);
+  box-shadow: 0 14px 28px rgb(21 63 56 / 18%);
+  cursor: default;
+  transition: none;
+}
+.semester-admin-preview::after {
+  position: absolute;
+  inset-inline-end: -34px;
+  bottom: -86px;
+  width: 210px;
+  height: 210px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+.semester-admin-preview.is-coming-soon {
+  color: var(--ink);
+  background: linear-gradient(125deg, #eef1eb, #e1e8df);
+  box-shadow: none;
+}
+.semester-admin-preview .semester-icon {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 20px;
+  background: rgb(255 255 255 / 13%);
+  font-size: 2rem;
+}
+.semester-admin-preview.is-coming-soon .semester-icon {
+  border-color: var(--line);
+  background: #fff;
+}
+.semester-admin-preview .semester-card-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.semester-admin-preview .semester-card-content strong {
+  font-size: clamp(1.3rem, 2.5vw, 1.7rem);
+  overflow-wrap: anywhere;
+}
+.semester-admin-preview .semester-status {
+  width: fit-content;
+  padding: 2px 10px;
+  border-radius: 999px;
+  color: #fff2c5;
+  background: rgb(255 255 255 / 12%);
+  font-size: .78rem;
+  font-weight: 700;
+}
+.semester-admin-preview.is-coming-soon .semester-status {
+  color: #765b1a;
+  background: #f4e9c7;
+}
+.semester-admin-preview .semester-description {
+  color: rgb(255 255 255 / 82%);
+  line-height: 1.7;
+}
+.semester-admin-preview.is-coming-soon .semester-description { color: var(--muted); }
+.semester-admin-preview .semester-arrow {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 32%);
+  border-radius: 50%;
+  font-size: 1.2rem;
+}
+.semester-admin-preview.is-coming-soon .semester-arrow { border-color: var(--line); }
+.semester-admin-preview > * { min-width: 0; }
+.semester-admin-preview .semester-description:empty { display: none; }
+.semester-admin-preview .semester-stats { margin-top: 7px; font-size: .9rem; font-weight: 700; }
+.semester-admin-preview .semester-card-content strong { overflow-wrap: anywhere; }
 .semester-admin-heading {
   display: flex;
   grid-column: 1 / -1;
@@ -1341,9 +1438,27 @@ body.dark .homepage-section-row {
 .category-admin-file-count { width: 100%; }
 .category-cancel-edit { min-height: 48px; }
 body.dark .semester-admin-row { border-color: var(--line); background: var(--surface); }
+body.dark .semester-admin-preview:not(.is-coming-soon) {
+  background: linear-gradient(125deg, #214d42, #28624f);
+}
+body.dark .semester-admin-preview.is-coming-soon {
+  background: linear-gradient(125deg, #313c35, #28332e);
+}
+body.dark .semester-admin-preview.is-coming-soon .semester-icon {
+  border-color: var(--line);
+  background: var(--surface);
+}
 
 @media (max-width: 650px) {
   .semester-admin-row { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 13px; }
   .semester-admin-heading, .semester-admin-actions { grid-column: 1; }
   .semester-admin-heading { align-items: flex-start; flex-direction: column; }
+  .semester-card.semester-admin-preview {
+    min-height: 162px;
+    grid-template-columns: 52px minmax(0, 1fr) 30px;
+    gap: 12px;
+    padding: 18px 15px;
+    border-radius: 18px;
+  }
+  .semester-admin-preview .semester-icon { width: 52px; height: 52px; border-radius: 15px; font-size: 1.55rem; }
 }
