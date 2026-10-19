@@ -1275,6 +1275,21 @@ body.dark .category-scroll-button:not(:disabled):hover {
 .semester-stats { margin-top: 7px; font-size: .9rem; font-weight: 700; }
 .semester-arrow { position: relative; z-index: 1; display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid rgb(255 255 255 / 32%); border-radius: 50%; font-size: 1.2rem; }
 .is-coming-soon .semester-arrow { border-color: var(--line); }
+.semester-card:not(.is-coming-soon) .semester-arrow {
+  border-color: rgb(255 255 255 / 20%);
+  background: rgb(255 255 255 / 10%);
+  box-shadow: inset 0 1px rgb(255 255 255 / 16%);
+  transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+.semester-card:not(.is-coming-soon):hover .semester-arrow {
+  transform: translateX(-3px);
+  background: rgb(255 255 255 / 18%);
+  box-shadow: inset 0 1px rgb(255 255 255 / 22%), 0 4px 10px rgb(10 45 35 / 16%);
+}
+.semester-card.is-coming-soon .semester-arrow {
+  color: var(--green-strong);
+  background: color-mix(in srgb, var(--green-soft) 72%, var(--surface));
+}
 .semester-skeleton { min-height: 190px; border-radius: 23px; background: linear-gradient(100deg, #e4e9e3 20%, #f3f5f0 40%, #e4e9e3 60%); background-size: 200% 100%; animation: library-shimmer 1.3s linear infinite; }
 @keyframes library-shimmer { to { background-position-x: -200%; } }
 .term-content { padding-top: 10px; }
@@ -1366,6 +1381,8 @@ body.dark .category-card-icon[data-theme="document"] { color: #e9abb6; backgroun
 body.dark .category-card-count { color: #acd1ba; background: #2d4538; }
 body.dark .category-card.is-coming-soon .category-card-count { color: #e3c579; background: #463e2b; }
 body.dark .category-card-arrow { border-color: rgb(255 255 255 / 18%); color: #eaf5ee; background: linear-gradient(145deg, #3d8066, #225343); box-shadow: inset 0 1px rgb(255 255 255 / 16%), 0 5px 14px rgb(0 0 0 / 24%); }
+body.dark .semester-card:not(.is-coming-soon) .semester-arrow { border-color: rgb(255 255 255 / 20%); color: #f1f7f3; background: rgb(255 255 255 / 9%); }
+body.dark .semester-card.is-coming-soon .semester-arrow { border-color: var(--line); color: var(--ink); background: #202b26; }
 body.dark .library-breadcrumbs button { color: #a8c6b5; }
 body.dark .library-breadcrumbs button:hover { background: #293c33; }
 body.dark .library-load-error { border-color: #75433e; color: #ffc6bc; background: #382725; }
@@ -3718,6 +3735,110 @@ html[lang="en"] .mobile-toolbar {
   outline: none;
 }
 
+.study-form select {
+  padding-inline-end: 34px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%2317483f' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 12px center;
+  cursor: pointer;
+}
+
+.study-form input[type="date"],
+.student-reminder-form input[type="datetime-local"] {
+  color-scheme: light;
+  accent-color: var(--green-strong);
+}
+
+.study-form input[type="date"]::-webkit-calendar-picker-indicator,
+.student-reminder-form input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.study-form input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.student-reminder-form input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  background-color: var(--green-soft);
+  transform: scale(1.08);
+}
+
+.study-form input[type="date"]:focus-visible,
+.study-form select:focus-visible,
+.student-reminder-form input[type="datetime-local"]:focus-visible {
+  border-color: #6d9b83;
+  box-shadow: 0 0 0 3px rgb(67 125 91 / 14%);
+  outline: none;
+}
+
+.student-session-panel > #student-enable-push {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border: 1px solid color-mix(in srgb, var(--green-strong) 24%, var(--line));
+  color: var(--green-strong);
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--green-soft) 82%, var(--surface)),
+    var(--surface));
+  box-shadow: 0 5px 14px rgb(21 63 56 / 8%), inset 0 1px rgb(255 255 255 / 82%);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.student-session-panel > #student-enable-push::before {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  background: currentColor;
+  content: "";
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9'/%3E%3Cpath d='M10 21h4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.student-session-panel > #student-enable-push:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--green-strong) 48%, var(--line));
+  box-shadow: 0 8px 18px rgb(21 63 56 / 13%), inset 0 1px rgb(255 255 255 / 88%);
+}
+
+.student-session-panel > #student-enable-push:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--green-strong) 28%, transparent);
+  outline-offset: 2px;
+}
+
+body.dark .study-form input[type="date"],
+body.dark .student-reminder-form input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+body.dark .study-form select {
+  border-color: #40574b;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%23c5d8cd' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+body.dark .study-form input[type="date"]::-webkit-calendar-picker-indicator,
+body.dark .student-reminder-form input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(.84);
+}
+
+body.dark .study-form input[type="date"]::-webkit-calendar-picker-indicator:hover,
+body.dark .student-reminder-form input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  background-color: #304b3d;
+}
+
+body.dark .student-session-panel > #student-enable-push {
+  border-color: #4b725c;
+  color: #e1f1e6;
+  background: linear-gradient(135deg, #294a39, #20392f);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 20%), inset 0 1px rgb(255 255 255 / 8%);
+}
+
+body.dark .student-session-panel > #student-enable-push:hover:not(:disabled) {
+  border-color: #689579;
+  box-shadow: 0 9px 20px rgb(0 0 0 / 26%), inset 0 1px rgb(255 255 255 / 12%);
+}
+
 .study-add-button {
   min-height: 43px;
   padding-inline: 16px;
@@ -3862,6 +3983,9 @@ html[lang="en"] .mobile-toolbar {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .semester-card, .category-card, .category-card-arrow { transition: none; }
+  .semester-card, .category-card, .category-card-arrow, .semester-arrow,
+  .study-form input[type="date"]::-webkit-calendar-picker-indicator,
+  .student-reminder-form input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  .student-session-panel > #student-enable-push { transition: none; }
   .semester-skeleton { animation: none; }
 }
