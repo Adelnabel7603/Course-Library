@@ -310,6 +310,11 @@
           <div class="category-cards" id="category-cards"></div>
         <div class="section-heading">
           <h2 id="library-heading" data-text="filesHeading">الملفات</h2>
+          <div class="file-batch-actions" id="file-batch-actions" hidden>
+            <span id="selected-file-count" aria-live="polite"></span>
+            <button class="file-action primary" id="download-selected-files" type="button"></button>
+            <button class="file-action" id="clear-file-selection" type="button"></button>
+          </div>
           <span id="result-count" aria-live="polite"></span>
         </div>
         <div class="file-grid" id="file-grid" aria-live="polite"></div>
@@ -368,7 +373,11 @@
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <section class="app-update-prompt" id="app-update-prompt" role="status" aria-live="polite" hidden>
-      <span data-text="updateAvailable">تم تحديث التطبيق. حدّث الصفحة لتشغيل النسخة الجديدة.</span>
+      <span class="app-update-icon" aria-hidden="true">✦</span>
+      <div class="app-update-copy">
+        <strong data-text="updateTitle">وصل تحديث جديد!</strong>
+        <span data-text="updateAvailable">حدّث الصفحة الآن واستمتع بأحدث المميزات والتحسينات.</span>
+      </div>
       <button id="refresh-app-button" type="button" data-text="refreshApp">تحديث الآن</button>
     </section>
     <section

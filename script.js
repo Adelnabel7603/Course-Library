@@ -13,8 +13,10 @@ const files = legacyFiles;
 const translations = {
   ar: {
     brand: "مكتبة المقررات",
-    updateAvailable: "تم تحديث التطبيق. حدّث الصفحة لتشغيل النسخة الجديدة.",
+    updateTitle: "وصل تحديث جديد!",
+    updateAvailable: "حدّث الصفحة الآن واستمتع بأحدث المميزات والتحسينات.",
     refreshApp: "تحديث الآن",
+    refreshingApp: "جارٍ تحديث المكتبة...",
     notifications: "الإشعارات",
     markRead: "تحديد كمقروءة",
     enableNotifications: "تفعيل إشعارات الجهاز",
@@ -113,6 +115,15 @@ const translations = {
     count: (count) => `${count} ملف`,
     open: "فتح",
     download: "تنزيل",
+    selectFile: "اختيار للتنزيل",
+    selectedFiles: (count) => `${count} ملفات محددة`,
+    downloadSelected: (count) => `تنزيل المحدد (${count})`,
+    clearSelection: "إلغاء التحديد",
+    batchDownloadProgress: (current, total, name) => `تنزيل ${current} من ${total}: ${name}`,
+    batchDownloadComplete: (completed, failed) =>
+      `اكتمل تنزيل ${completed} ملف${failed ? `، وتعذر تنزيل ${failed}` : ""}.`,
+    batchDownloadCancelled: (completed) =>
+      `تم إلغاء التنزيل بعد إكمال ${completed} ملف.`,
     newFile: "جديد",
     attachments: "الملفات المرفقة",
     downloading: "جارٍ تنزيل الملف",
@@ -137,8 +148,10 @@ const translations = {
   },
   en: {
     brand: "Course Library",
-    updateAvailable: "The app was updated. Refresh to load the new version.",
+    updateTitle: "A new update is here!",
+    updateAvailable: "Refresh now to enjoy the latest features and improvements.",
     refreshApp: "Refresh now",
+    refreshingApp: "Updating your library...",
     notifications: "Notifications",
     markRead: "Mark all as read",
     enableNotifications: "Enable device notifications",
@@ -237,6 +250,15 @@ const translations = {
     count: (count) => `${count} files`,
     open: "Open",
     download: "Download",
+    selectFile: "Select for download",
+    selectedFiles: (count) => `${count} files selected`,
+    downloadSelected: (count) => `Download selected (${count})`,
+    clearSelection: "Clear selection",
+    batchDownloadProgress: (current, total, name) => `Downloading ${current} of ${total}: ${name}`,
+    batchDownloadComplete: (completed, failed) =>
+      `Downloaded ${completed} file${completed === 1 ? "" : "s"}${failed ? `; ${failed} failed` : ""}.`,
+    batchDownloadCancelled: (completed) =>
+      `Download cancelled after ${completed} file${completed === 1 ? "" : "s"}.`,
     newFile: "New",
     attachments: "Attachments",
     downloading: "Downloading file",
@@ -272,6 +294,10 @@ const libraryRetry = document.querySelector("#library-retry");
 const categoryScrollLeft = document.querySelector("#category-scroll-left");
 const categoryScrollRight = document.querySelector("#category-scroll-right");
 const fileGrid = document.querySelector("#file-grid");
+const fileBatchActions = document.querySelector("#file-batch-actions");
+const selectedFileCount = document.querySelector("#selected-file-count");
+const downloadSelectedFilesButton = document.querySelector("#download-selected-files");
+const clearFileSelectionButton = document.querySelector("#clear-file-selection");
 const searchInput = document.querySelector("#search-input");
 const favoritesList = document.querySelector("#favorites-list");
 const favoritesCount = document.querySelector("#favorites-count");
@@ -347,6 +373,8 @@ let toastTimeout;
 let mobileMoreMenuCloseTimeout;
 let installPrompt;
 let activeDownload;
+let waitingServiceWorker;
+let isBatchDownloading = false;
 let notifications = [];
 let notificationAudioContext;
 let notificationsLoaded = false;
@@ -363,6 +391,7 @@ const studySessionStorageKey = "course-library-study-sessions-v1";
 const studyDurationStorageKey = "course-library-study-duration-minutes-v1";
 const defaultStudyDurationMinutes = 25;
 const favoriteFileIds = new Set(loadStoredArray(favoriteStorageKey));
+const selectedFileIds = new Set();
 let recentFileIds = loadStoredArray(recentStorageKey);
 let studyTasks = loadStoredArray(studyTaskStorageKey);
 let studySessions = loadStoredArray(studySessionStorageKey);
@@ -881,6 +910,19 @@ function positionMobileMoreMenu() {
 
 function currentText() {
   return translations[language];
+}
+
+function updateBatchDownloadControls() {
+  const count = selectedFileIds.size;
+  fileBatchActions.hidden = count === 0;
+  selectedFileCount.textContent = currentText().selectedFiles(count);
+  downloadSelectedFilesButton.textContent = currentText().downloadSelected(count);
+  clearFileSelectionButton.textContent = currentText().clearSelection;
+  downloadSelectedFilesButton.disabled = isBatchDownloading || count === 0;
+  clearFileSelectionButton.disabled = isBatchDownloading;
+  fileGrid.querySelectorAll(".file-select-checkbox").forEach((checkbox) => {
+    checkbox.disabled = isBatchDownloading;
+  });
 }
 
 function setLanguage(nextLanguage) {
@@ -1470,6 +1512,10 @@ function fileUrl(fileName) {
 
 function renderFiles() {
   const text = currentText();
+  const availableFileIds = new Set(availableFiles.map(getFileIdentity));
+  for (const fileId of selectedFileIds) {
+    if (!availableFileIds.has(fileId)) selectedFileIds.delete(fileId);
+  }
   const query = normalizeSearch(searchInput.value);
   const isSelectingCategory = Boolean(activeSemester) && activeCategory === "all";
   const visibleCategoryIds = activeCategory !== "all"
@@ -1552,6 +1598,24 @@ function renderFiles() {
     favoriteButton.addEventListener("click", () => toggleFavorite(file));
     top.append(icon, details, favoriteButton);
 
+    const selectLabel = document.createElement("label");
+    selectLabel.className = "file-select-label";
+    const selectCheckbox = document.createElement("input");
+    selectCheckbox.className = "file-select-checkbox";
+    selectCheckbox.type = "checkbox";
+    selectCheckbox.checked = selectedFileIds.has(getFileIdentity(file));
+    selectCheckbox.setAttribute("aria-label", `${text.selectFile}: ${file.name}`);
+    selectCheckbox.addEventListener("change", () => {
+      const fileId = getFileIdentity(file);
+      if (selectCheckbox.checked) {
+        selectedFileIds.add(fileId);
+      } else {
+        selectedFileIds.delete(fileId);
+      }
+      updateBatchDownloadControls();
+    });
+    selectLabel.append(selectCheckbox, document.createTextNode(text.selectFile));
+
     if (mimeType.startsWith("image/")) {
       const image = document.createElement("img");
       image.className = "file-preview image-preview";
@@ -1609,12 +1673,13 @@ function renderFiles() {
     downloadLink.download = getDownloadName(file);
     downloadLink.addEventListener("click", (event) => {
       event.preventDefault();
+      if (isBatchDownloading) return;
       downloadFile(file, downloadLink.href);
     });
     downloadLink.textContent = `↓ ${text.download}`;
     downloadLink.setAttribute("aria-label", `${text.download}: ${file.name}`);
     actions.append(openLink, downloadLink);
-    card.append(top, actions);
+    card.append(selectLabel, top, actions);
     return card;
   }
 
@@ -1704,6 +1769,7 @@ function renderFiles() {
       : text.empty;
   emptyState.hidden = visibleFiles.length > 0;
   fileGrid.hidden = visibleFiles.length === 0;
+  updateBatchDownloadControls();
   renderPersonalSections();
 }
 
@@ -1922,13 +1988,19 @@ function finishDownload(download, title, detail = "") {
   }
 }
 
-async function downloadFile(file, url) {
+async function downloadFile(file, url, batchPosition = null) {
   activeDownload?.controller.abort();
   const download = { controller: new AbortController() };
   activeDownload = download;
   downloadProgress.hidden = false;
   downloadProgress.classList.remove("is-complete", "is-error");
-  downloadProgressTitle.textContent = `${currentText().downloading}: ${getDownloadName(file)}`;
+  downloadProgressTitle.textContent = batchPosition
+    ? currentText().batchDownloadProgress(
+        batchPosition.current,
+        batchPosition.total,
+        getDownloadName(file),
+      )
+    : `${currentText().downloading}: ${getDownloadName(file)}`;
   downloadProgressDetail.textContent = currentText().downloadStarting;
   downloadProgressPercent.textContent = "0%";
   downloadProgressBar.classList.remove("indeterminate");
@@ -1961,7 +2033,7 @@ async function downloadFile(file, url) {
       });
     }
 
-    if (activeDownload !== download) return;
+    if (activeDownload !== download) return "cancelled";
     const objectUrl = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = objectUrl;
@@ -1977,15 +2049,63 @@ async function downloadFile(file, url) {
         showToast(error.message || currentText().downloadFailed);
       });
     }
+    return "complete";
   } catch (error) {
-    if (activeDownload !== download) return;
+    if (activeDownload !== download) return "cancelled";
     if (error.name === "AbortError") {
       finishDownload(download, currentText().downloadCancelled);
-      return;
+      return "cancelled";
     }
     finishDownload(download, currentText().downloadFailed, error.message);
+    return "failed";
   }
 }
+
+downloadSelectedFilesButton.addEventListener("click", async () => {
+  if (isBatchDownloading) return;
+  const selectedFiles = availableFiles.filter((file) =>
+    selectedFileIds.has(getFileIdentity(file)));
+  if (!selectedFiles.length) {
+    selectedFileIds.clear();
+    updateBatchDownloadControls();
+    return;
+  }
+
+  isBatchDownloading = true;
+  updateBatchDownloadControls();
+  let completed = 0;
+  let failed = 0;
+  let cancelled = false;
+  try {
+    for (const [index, file] of selectedFiles.entries()) {
+      const result = await downloadFile(
+        file,
+        cloudLibraryEnabled ? file.downloadUrl : fileUrl(file.name),
+        { current: index + 1, total: selectedFiles.length },
+      );
+      if (result === "complete") {
+        completed += 1;
+      } else if (result === "cancelled") {
+        cancelled = true;
+        break;
+      } else {
+        failed += 1;
+      }
+    }
+    showToast(cancelled
+      ? currentText().batchDownloadCancelled(completed)
+      : currentText().batchDownloadComplete(completed, failed));
+  } finally {
+    isBatchDownloading = false;
+    updateBatchDownloadControls();
+  }
+});
+
+clearFileSelectionButton.addEventListener("click", () => {
+  if (isBatchDownloading) return;
+  selectedFileIds.clear();
+  renderFiles();
+});
 
 studyTaskForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -2097,7 +2217,15 @@ notificationButton.addEventListener("click", () => {
   unlockNotificationSound();
   toggleNotificationPanel();
 });
-refreshAppButton.addEventListener("click", () => window.location.reload());
+refreshAppButton.addEventListener("click", () => {
+  if (!waitingServiceWorker) {
+    window.location.reload();
+    return;
+  }
+  refreshAppButton.disabled = true;
+  refreshAppButton.textContent = currentText().refreshingApp;
+  waitingServiceWorker.postMessage({ type: "SKIP_WAITING" });
+});
 markNotificationsRead.addEventListener("click", () => {
   notifications.forEach(({ id }) => readNotificationIds.add(id));
   saveReadNotificationIds();
@@ -2227,6 +2355,19 @@ if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
   });
   navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" })
     .then((registration) => {
+      const showUpdatePrompt = () => {
+        if (!registration.waiting || !navigator.serviceWorker.controller) return;
+        waitingServiceWorker = registration.waiting;
+        appUpdatePrompt.hidden = false;
+      };
+      showUpdatePrompt();
+      registration.addEventListener("updatefound", () => {
+        const installingWorker = registration.installing;
+        if (!installingWorker) return;
+        installingWorker.addEventListener("statechange", () => {
+          if (installingWorker.state === "installed") showUpdatePrompt();
+        });
+      });
       const checkForUpdate = () => {
         if (document.visibilityState === "visible") {
           registration.update().then(() => {

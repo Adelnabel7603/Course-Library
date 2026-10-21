@@ -350,30 +350,114 @@ button {
   inset-inline: 16px;
   bottom: max(16px, env(safe-area-inset-bottom));
   display: flex;
-  width: fit-content;
-  max-width: min(560px, calc(100vw - 32px));
+  width: min(610px, calc(100vw - 32px));
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
   margin-inline: auto;
-  padding: 12px 15px;
-  border: 1px solid #a8c4b2;
-  border-radius: 14px;
-  color: var(--ink);
-  background: var(--surface);
-  box-shadow: 0 12px 36px rgb(10 30 24 / 22%);
-  font-size: .88rem;
+  padding: 15px;
+  overflow: hidden;
+  border: 1px solid rgb(218 239 224 / 32%);
+  border-radius: 20px;
+  color: #f6fbf7;
+  background:
+    radial-gradient(ellipse at 12% 0%, rgb(153 220 174 / 25%), transparent 42%),
+    linear-gradient(135deg, #1d4939, #122f2b 72%);
+  box-shadow: 0 22px 60px rgb(9 28 23 / 35%), 0 0 0 1px rgb(255 255 255 / 5%) inset;
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  animation: app-update-enter 520ms cubic-bezier(.18, .85, .25, 1.15) both;
+}
+
+.app-update-prompt[hidden] {
+  display: none;
+}
+
+.app-update-prompt::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -38%;
+  width: 30%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 10%), transparent);
+  content: "";
+  pointer-events: none;
+  animation: app-update-shine 3.8s ease-in-out 700ms infinite;
+}
+
+.app-update-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(242 215 127 / 42%);
+  border-radius: 16px;
+  color: #f5da84;
+  background: rgb(242 215 127 / 12%);
+  font-size: 1.55rem;
+  animation: app-update-sparkle 2.4s ease-in-out infinite;
+}
+
+.app-update-copy {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+}
+
+.app-update-copy strong {
+  font-size: .98rem;
+}
+
+.app-update-copy > span {
+  color: #d0e1d7;
+  font-size: .83rem;
+  line-height: 1.55;
 }
 
 .app-update-prompt button {
   flex: 0 0 auto;
-  min-height: 36px;
-  padding: 6px 13px;
-  border: 0;
-  border-radius: 9px;
-  color: #fff;
-  background: var(--green);
+  min-height: 42px;
+  padding: 8px 16px;
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: 12px;
+  color: #173228;
+  background: linear-gradient(135deg, #f5df98, #e8c96c);
+  box-shadow: 0 7px 18px rgb(0 0 0 / 16%);
   font-weight: 700;
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.app-update-prompt button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 10px 22px rgb(0 0 0 / 22%);
+}
+
+.app-update-prompt button:disabled {
+  cursor: wait;
+  opacity: .8;
+}
+
+@keyframes app-update-enter {
+  from { opacity: 0; transform: translateY(22px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes app-update-shine {
+  0%, 38% { inset-inline-start: -38%; }
+  72%, 100% { inset-inline-start: 115%; }
+}
+
+@keyframes app-update-sparkle {
+  0%, 100% { transform: rotate(-5deg) scale(1); }
+  50% { transform: rotate(8deg) scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-update-prompt,
+  .app-update-prompt::before,
+  .app-update-icon {
+    animation: none;
+  }
 }
 
 .toolbar > a {
@@ -647,10 +731,33 @@ h1 {
 .section-heading {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
   padding-block: 8px 13px;
   border-bottom: 1px solid var(--line);
+}
+
+.file-batch-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+
+.file-batch-actions[hidden] {
+  display: none;
+}
+
+.file-batch-actions > span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.file-batch-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .section-heading h2 {
@@ -791,6 +898,24 @@ h1 {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+}
+
+.file-select-label {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.file-select-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--green-strong);
 }
 
 .file-cover {
@@ -1435,9 +1560,13 @@ body.dark .library-load-error { border-color: #75433e; color: #ffc6bc; backgroun
   }
 
   .app-update-prompt {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .app-update-prompt button {
+    grid-column: 1 / -1;
   }
 
   .outline-button {

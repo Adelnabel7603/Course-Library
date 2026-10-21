@@ -1,4 +1,4 @@
-const CACHE_NAME = "course-library-v13";
+const CACHE_NAME = "course-library-v14";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -31,9 +31,14 @@ self.addEventListener("install", (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(
         APP_SHELL.map((path) => new Request(path, { cache: "reload" })),
-      ))
-      .then(() => self.skipWaiting()),
+      )),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", (event) => {
